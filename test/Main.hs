@@ -3,7 +3,6 @@ module Main where
 import Data.Char (isSpace)
 import Data.List.Split (splitOn)
 import Data.Maybe (catMaybes)
-import System.Environment (getArgs)
 import System.Process.Typed (readProcess_)
 import BenchGraph (bgraph, Config(..), ComparisonStyle (..))
 
@@ -61,7 +60,7 @@ bmGroups =
 -------------------------------------------------------------------------------
 main :: IO ()
 main = do
-    args <- getArgs
+    let input = "test/results.csv"
 
     (out, _) <- readProcess_ "stack --system-ghc list-dependencies --bench"
 
@@ -101,7 +100,7 @@ main = do
             , "transformation/scan"
             ]
         cfg = Config
-            { inputFile = head args
+            { inputFile = input
             , chartTitle = title
             , outputDir = "charts"
             , outputFile = Just $ titleToFileName title
