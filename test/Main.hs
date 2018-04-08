@@ -4,7 +4,7 @@ import Data.Char (isSpace)
 import Data.List.Split (splitOn)
 import Data.Maybe (catMaybes)
 import System.Process.Typed (readProcess_)
-import BenchGraph (bgraph, Config(..), ComparisonStyle (..))
+import BenchGraph (bgraph, defaultConfig, Config(..))
 
 import Data.List
 
@@ -99,11 +99,9 @@ main = do
             , "filtering/filter-even"
             , "transformation/scan"
             ]
-        cfg = Config
-            { inputFile = input
-            , chartTitle = title
+        cfg = defaultConfig
+            { chartTitle = Just title
             , outputDir = "charts"
-            , outputFile = Just $ titleToFileName title
             , classifyBenchmark = \bm ->
                 case any (`isPrefixOf` bm) prefixes of
                     True ->
@@ -117,8 +115,6 @@ main = do
                 let i = intersectBy (\x y -> head (splitOn "-" x) == y)
                                     gs packages
                 in i ++ (gs \\ i)
-            , selectBenchGroups = Nothing
             , setYScale = Nothing
-            , comparisonStyle = CompareFull
             }
-     in bgraph cfg
+     in bgraph input (titleToFileName title) cfg
