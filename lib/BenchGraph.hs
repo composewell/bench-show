@@ -147,10 +147,13 @@ genGroupGraph outputFile Config{..} benchNames values =
                         indexes = take (nticks + 1) [0,r/(fromIntegral nticks)..]
                     in makeAxis (map ((++ " ms") . show . floor)) (indexes, [], [])
 
+        -- woraround for a bug that renders the plot badly when using a single
+        -- cluster in the bar chart.
+        let vals = if length values == 1 then values ++ [([], [])] else values
         -- XXX We are mapping a missing value to 0, can we label it missing
         -- instead?
         let modifyVal x = map ((*1000) . fromMaybe 0) (snd x)
-        plot $ fmap plotBars $ bars benchNames (addIndexes (map modifyVal values))
+        plot $ fmap plotBars $ bars benchNames (addIndexes (map modifyVal vals))
 
 -- [[Double]] each list is multiple results for each benchmark
 transposeLists :: [[a]] -> Maybe [[Maybe a]]
