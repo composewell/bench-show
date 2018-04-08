@@ -114,7 +114,7 @@ main = do
             , sortBenchGroups = \gs ->
                 let i = intersectBy (\x y -> head (splitOn "-" x) == y)
                                     gs packages
-                in i ++ (gs \\ i)
-            , setYScale = Nothing
+                in take 2 $ i ++ (gs \\ i)
+            , setYScale = Just (100000,10)
             }
      in bgraph input (titleToFileName title) cfg
