@@ -1,6 +1,6 @@
 name:               bench-graph
 version:            0.1.0
-synopsis:           Plot benchmarks and compare them
+synopsis:           Plot and compare benchmarks
 description:
   Plot benchmarks and compare them
   See the README for comprehensive documentation.
