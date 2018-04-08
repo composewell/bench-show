@@ -5,7 +5,7 @@ import Data.List.Split (splitOn)
 import Data.Maybe (catMaybes)
 import System.Environment (getArgs)
 import System.Process.Typed (readProcess_)
-import Chart (chartMain, ChartConfig(..), ComparisonStyle (..))
+import BenchGraph (bgraph, Config(..), ComparisonStyle (..))
 
 import Data.List
 
@@ -100,7 +100,7 @@ main = do
             , "filtering/filter-even"
             , "transformation/scan"
             ]
-        cfg = ChartConfig
+        cfg = Config
             { inputFile = head args
             , chartTitle = title
             , outputDir = "charts"
@@ -118,8 +118,8 @@ main = do
                 let i = intersectBy (\x y -> head (splitOn "-" x) == y)
                                     gs packages
                 in i ++ (gs \\ i)
-            , selectBgroups = Nothing
-            , timeScale = Nothing
+            , selectBenchGroups = Nothing
+            , setYScale = Nothing
             , comparisonStyle = CompareFull
             }
-     in chartMain cfg
+     in bgraph cfg

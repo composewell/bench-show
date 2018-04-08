@@ -1,22 +1,21 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module Chart (chartMain, ChartConfig(..), ComparisonStyle (..)) where
+module BenchGraph (bgraph, Config(..), ComparisonStyle (..)) where
 
 import Control.Arrow (second)
-import Data.List (nub, transpose)
-import Data.Maybe (fromMaybe, catMaybes, fromMaybe)
-import System.Directory (createDirectoryIfMissing)
--- import System.Process.Typed (readProcess_)
-import Text.CSV (CSV, parseCSVFromFile)
 import Control.Monad.Trans.State.Lazy (get, put)
+import Data.List (nub, transpose)
+import Data.Maybe (catMaybes, fromMaybe)
+import System.Directory (createDirectoryIfMissing)
+import Text.CSV (CSV, parseCSVFromFile)
 
 import Graphics.Rendering.Chart.Easy
 import Graphics.Rendering.Chart.Backend.Diagrams
 
 data ComparisonStyle = CompareDelta | CompareFull
 
-data ChartConfig = ChartConfig
+data Config = Config
     {
       inputFile  :: FilePath
     , chartTitle  :: String
@@ -35,9 +34,10 @@ data ChartConfig = ChartConfig
     -- | Given the total number of bgroups found in the benchmarked data,
     -- select the indexes of the ones you want to plot, indexes start from 0.
     -- default is to plot last 3.
-    , selectBgroups :: Maybe (Int -> [Int])
-    -- | (RangeMax, NumMajorTicks) of the plot on the y (time) axis in microseconds
-    , timeScale      :: Maybe (Double, Int)
+    , selectBenchGroups :: Maybe (Int -> [Int])
+    -- | (RangeMax, NumMajorTicks) of the plot on the y (time) axis in
+    -- microseconds
+    , setYScale :: Maybe (Double, Int)
     -- | How to show the comparisons
     , comparisonStyle :: ComparisonStyle
     }
@@ -45,8 +45,8 @@ data ChartConfig = ChartConfig
 -- "values" is [(benchGroupName, [benchResult])]
 -- benchResult contains results for each benchmark in "benchNames" in exactly
 -- the same order.
-genGroupGraph :: ChartConfig -> [String] -> [(String, [Maybe Double])] -> IO ()
-genGroupGraph ChartConfig{..} benchNames values =
+genGroupGraph :: Config -> [String] -> [(String, [Maybe Double])] -> IO ()
+genGroupGraph Config{..} benchNames values =
     -- XXX use filepath/path concatenation
     toFile def (outputDir ++ "/" ++ fromMaybe chartTitle outputFile ++ ".svg") $ do
         layout_title .= chartTitle
@@ -73,7 +73,7 @@ genGroupGraph ChartConfig{..} benchNames values =
             }
         layout_y_axis . laxis_override .= modifyLabels
 
-        case timeScale of
+        case setYScale of
             Nothing -> return ()
             Just (rangeMax, nticks) ->
                 layout_y_axis . laxis_override .= \_ ->
@@ -131,8 +131,8 @@ getResultsForBenchGroup csvData classify groupName bmnames  =
         -- field at index 1 is the mean
         map read $ map (!! 1) $ filter (match bmname .  head) csvData
 
-genGraph :: ChartConfig -> CSV -> IO ()
-genGraph cfg@ChartConfig{..} csvData =
+genGraph :: Config -> CSV -> IO ()
+genGraph cfg@Config{..} csvData =
     -- bmResults contains benchmark results for bmnames for each group
     genGroupGraph cfg bmnames bmResults
 
@@ -164,8 +164,8 @@ genGraph cfg@ChartConfig{..} csvData =
 -- XXX display the OS/arch
 -- This data should be in the measurement data
 
-chartMain :: ChartConfig -> IO ()
-chartMain cfg@ChartConfig{..} = do
+bgraph :: Config -> IO ()
+bgraph cfg@Config{..} = do
     createDirectoryIfMissing True outputDir
 
     csvData <- parseCSVFromFile inputFile
