@@ -31,7 +31,9 @@ library
     hs-source-dirs:   lib
     exposed-modules:  Chart
     default-language: Haskell2010
-    default-extensions: OverloadedStrings
+    default-extensions:
+        OverloadedStrings
+        RecordWildCards
     ghc-options: -Wall
     build-depends:
           base              >= 4.8     && < 5
@@ -40,17 +42,20 @@ library
         , Chart-diagrams    >= 1.6     && < 1.9
         , csv               >= 0.1     && < 0.2
         , directory         >= 1.2     && < 1.4
-        , split             >= 0.2     && < 0.3
-        , text              >= 1.1.1   && < 1.3
         , transformers      >= 0.4     && < 0.6
-        , typed-process     >= 0.1.0.0 && < 0.3
 
 executable bgraph
     default-language: Haskell2010
+    default-extensions:
+        OverloadedStrings
+        RecordWildCards
     hs-source-dirs: exe
     main-is: Main.hs
     ghc-options: -Wall
 
     build-depends:
-        base >= 4.8 && < 5
-      , bench-graph
+          base              >= 4.8 && < 5
+        , bench-graph
+        , split             >= 0.2     && < 0.3
+        , text              >= 1.1.1   && < 1.3
+        , typed-process     >= 0.1.0.0 && < 0.3
