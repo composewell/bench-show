@@ -4,7 +4,7 @@ import Data.Char (isSpace)
 import Data.List.Split (splitOn)
 import Data.Maybe (catMaybes)
 import System.Process.Typed (readProcess_)
-import BenchGraph (bgraph, defaultConfig, Config(..))
+import BenchGraph (bgraph, defaultConfig, Config(..), ComparisonStyle(..))
 
 import Data.List
 
@@ -114,7 +114,8 @@ main = do
             , sortBenchGroups = \gs ->
                 let i = intersectBy (\x y -> head (splitOn "-" x) == y)
                                     gs packages
-                in i ++ (gs \\ i)
-            , setYScale = Nothing
+                in tail $ i ++ (gs \\ i)
+            , setYScale = Just (-20000, 50000,7)
+            , comparisonStyle = CompareDelta
             }
      in bgraph input (titleToFileName title) cfg
