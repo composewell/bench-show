@@ -133,9 +133,10 @@ genGroupGraph outputFile Config{..} benchNames values = do
                               toDelta x1 x2 =
                                 case x1 of
                                     Nothing -> Nothing
-                                    Just v -> fmap (\v1 -> v - v1) x2
-                              convert (name, xs) = ("(-)" ++ name, zipWith toDelta h xs)
-                          in head values : map convert (tail values)
+                                    Just v -> fmap (\v1 -> v1 - v) x2
+                              convertTail (name, xs) = (name ++ "(-base)", zipWith toDelta h xs)
+                              convertHead (name, xs) = (name ++ "(base)", xs)
+                          in convertHead (head values) : map convertTail (tail values)
                      else values
 
         layout_x_axis . laxis_generate .= autoIndexAxis (map fst vals)

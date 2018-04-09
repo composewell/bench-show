@@ -85,7 +85,7 @@ main = do
                 Just v -> p ++ "-" ++ v
 
     let titleToFileName t = filter (not . isSpace) (takeWhile (/= '(') t)
-        title = "Cheaper Operations (Shorter is Faster)"
+        title = "Cheaper Operations (Lower is Better)"
         prefixes =
             [ "elimination/toNull"
             , "filtering/drop-all"
