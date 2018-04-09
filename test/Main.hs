@@ -60,9 +60,6 @@ bmGroups =
 -------------------------------------------------------------------------------
 main :: IO ()
 main = do
-    --let input = "test/results.csv"
-    let input = "test/results.csvraw"
-
     (out, _) <- readProcess_ "stack --system-ghc list-dependencies --bench"
 
     -- Get our streaming packages and their versions
@@ -84,7 +81,7 @@ main = do
                 Nothing -> p
                 Just v -> p ++ "-" ++ v
 
-    let titleToFileName t = filter (not . isSpace) (takeWhile (/= '(') t)
+    let -- titleToFileName t = filter (not . isSpace) (takeWhile (/= '(') t)
         title = "Cheaper Operations (Lower is Better)"
         prefixes =
             [ "elimination/toNull"
@@ -115,8 +112,20 @@ main = do
             , sortBenchGroups = \gs ->
                 let i = intersectBy (\x y -> head (splitOn "-" x) == y)
                                     gs packages
-                in tail $ i ++ (gs \\ i)
-            , setYScale = Just (-20000, 50000,7)
-            , comparisonStyle = CompareDelta
+                in i ++ (gs \\ i)
             }
-     in bgraph input (titleToFileName title) "time" cfg
+
+    bgraph "test/results.csv" "csv-mean-full" "mean" cfg
+    bgraph "test/results.csvraw" "csvraw-time-full" "time" cfg
+    bgraph "test/results.csvraw" "csvraw-time-delta" "time"
+            (cfg {setYScale = Just (-20000, 50000,7)
+                 , comparisonStyle = CompareDelta
+                 })
+
+    bgraph "test/results.csvraw" "csvraw-allocated-full" "allocated" cfg
+    bgraph "test/results.csvraw" "csvraw-bytescopied-full" "bytesCopied" cfg
+    bgraph "test/results.csvraw" "csvraw-mutatorWallSeconds-full" "mutatorWallSeconds" cfg
+    bgraph "test/results.csvraw" "csvraw-mutatorCpuSeconds-full" "mutatorCpuSeconds" cfg
+    bgraph "test/results.csvraw" "csvraw-gcWallSeconds-full" "gcWallSeconds" cfg
+    bgraph "test/results.csvraw" "csvraw-gcCpuSeconds-full" "gcCpuSeconds" cfg
+    bgraph "test/results.csvraw" "csvraw-cycles-full" "cycles" cfg
