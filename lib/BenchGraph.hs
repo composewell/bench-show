@@ -109,8 +109,15 @@ defaultConfig = Config
 -- "values" is [(benchGroupName, [benchResult])]
 -- benchResult contains results for each benchmark in "benchNames" in exactly
 -- the same order.
-genGroupGraph :: FilePath -> Config -> [String] -> [(String, [Maybe Double])] -> IO ()
-genGroupGraph outputFile Config{..} benchNames values = do
+genGroupGraph
+    :: FilePath
+    -> String
+    -> Maybe [Double]
+    -> Config
+    -> [String]
+    -> [(String, [Maybe Double])]
+    -> IO ()
+genGroupGraph outputFile units yindexes Config{..} benchNames values = do
     -- XXX use filepath/path concatenation
     toFile
         def (outputDir
@@ -155,26 +162,24 @@ genGroupGraph outputFile Config{..} benchNames values = do
                               }
                 put $ layout { _layout_legend = Just s }
 
-        -- XXX automatically use ns/us/ms/sec on the scale
         -- layout_y_axis . laxis_override .= axisGridAtTicks
         let modifyLabels ad = ad {
-                _axis_labels = map (map (second (++ " ms"))) (_axis_labels ad)
+                _axis_labels = map (map (second (++ " " ++ units)))
+                                   (_axis_labels ad)
             }
         layout_y_axis . laxis_override .= modifyLabels
 
-        -- XXX remove the unit and /1000 hardcoding here
-        case setYScale of
+        case yindexes of
             Nothing -> return ()
-            Just (rangeMin, rangeMax, nInterval) ->
+            Just indexes ->
                 layout_y_axis . laxis_override .= \_ ->
-                    let r = (rangeMax - rangeMin)/(1000 * fromIntegral nInterval)
-                        rmin = rangeMin/1000
-                        indexes = take (nInterval + 1) [rmin, rmin + r..]
-                    in makeAxis (map ((++ " ms") . show . floor)) (indexes, [], [])
+                    makeAxis (let f = floor :: Double -> Int
+                              in map ((++ " " ++ units) . show . f))
+                             (indexes, [], [])
 
         -- XXX We are mapping a missing value to 0, can we label it missing
         -- instead?
-        let modifyVal x = map ((*1000) . fromMaybe 0) (snd x)
+        let modifyVal x = map (fromMaybe 0) (snd x)
         plot $ fmap plotBars $ bars benchNames (addIndexes (map modifyVal vals))
 
 -- [[Double]] each list is multiple results for each benchmark
@@ -223,8 +228,8 @@ getResultsForBenchGroup csvData classify groupName bmnames  =
         -- field at index 1 is the mean
         map read $ map (!! 1) $ filter (match bmname .  head) csvData
 
-genGraph :: FilePath -> Config -> CSV -> IO ()
-genGraph outfile cfg@Config{..} csvData = do
+genGraph :: FilePath -> String -> Maybe [Double] -> Config -> CSV -> IO ()
+genGraph outfile units yindexes cfg@Config{..} csvData = do
     when (bmgroups == []) $ error
         "No benchmark groups to plot. Please check your benchmark \
         \classifier (classifyBenchmarks), group filter (sortBenchGroups) or \
@@ -236,7 +241,7 @@ genGraph outfile cfg@Config{..} csvData = do
         \the input data"
 
     -- bmResults contains benchmark results for bmnames for each group
-    genGroupGraph outfile cfg bmnames bmResults
+    genGroupGraph outfile units yindexes cfg bmnames bmResults
 
     where
 
@@ -354,11 +359,37 @@ bgraph inputFile outputFile fieldName cfg@Config{..} = do
     case csvData of
         Left e -> error $ show e
         Right csvlines -> do
-            let
+            let isTimeField =
+                    let x = map toUpper fieldName
+                    in x == "TIME" || x == "MEAN"
+
+                (multiplier, units) =
+                    case isTimeField of
+                        -- XXX automatically use ns/us/ms/sec on the scale
+                        -- get the max and convert it to appropriate unit
+                        True -> (1000, "ms")
+                        False -> (1, "")
+
+                -- XXX need the ability to specify Units in the scale
+                yindexes =
+                    case setYScale of
+                        Nothing -> Nothing
+                        Just (rangeMin, rangeMax, nInterval) ->
+                            let r = (rangeMax - rangeMin)/(fromIntegral nInterval)
+                            in case isTimeField of
+                                True ->
+                                    let r'   = r/1000
+                                        rmin = rangeMin/1000
+                                    in Just $ take (nInterval + 1) [rmin, rmin + r'..]
+                                False -> Just $ take (nInterval + 1) [rangeMin, rangeMin + r..]
+
                 foldToMean xs =
                     let iters  = map (read . (!! 0)) xs :: [Double]
                         values = map (read . (!! 1)) xs :: [Double]
-                    in show (sum values / sum iters)
+                        mean = sum values / sum iters
+                    in show $ case isTimeField of
+                        True -> mean * multiplier
+                        False -> mean
 
              in    -- cleanup blank rows
                   filter (/= [""]) csvlines
@@ -377,4 +408,4 @@ bgraph inputFile outputFile fieldName cfg@Config{..} = do
                  -- XXX send tuples [(String, Double)] instead of [[String]]
                  -- XXX determine the units based on the field name
                  -- We can pass here the units to be displayed by the chart
-                & genGraph outputFile cfg
+                & genGraph outputFile units yindexes cfg
