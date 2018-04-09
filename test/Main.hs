@@ -60,7 +60,8 @@ bmGroups =
 -------------------------------------------------------------------------------
 main :: IO ()
 main = do
-    let input = "test/results.csv"
+    --let input = "test/results.csv"
+    let input = "test/results.csvraw"
 
     (out, _) <- readProcess_ "stack --system-ghc list-dependencies --bench"
 
@@ -118,4 +119,4 @@ main = do
             , setYScale = Just (-20000, 50000,7)
             , comparisonStyle = CompareDelta
             }
-     in bgraph input (titleToFileName title) cfg
+     in bgraph input (titleToFileName title) "time" cfg
