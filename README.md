@@ -11,4 +11,16 @@ order and on what scale.
 You can compare the difference in benchmark results of different versions of
 the same package or the difference between similar benchmarks of different
 packages. Comparison between many benchmarks can be shown side by side as full
-results of both, or as the difference from a baseline. TBD exmaple pictures.
+results of both, or as the difference from a baseline. TBD example pictures.
+
+You can plot any of the fields available in `gauge` output, for example:
+
+* time
+* cycles
+* total allocations (allocated)
+* bytes copied during GC (bytesCopied)
+* CPU time taken by the mutator i.e. other than GC (mutatorCpuSeconds)
+* CPU time taken by the garbage collector (gcCpuSeconds)
+
+And many others, including voluntary or involuntary context switches or max
+resident set size (rss).
