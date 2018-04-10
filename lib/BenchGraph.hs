@@ -45,8 +45,9 @@ import Control.Monad.Trans.State.Lazy (get, put)
 import Data.Char (toUpper)
 import Data.Function ((&))
 import Data.List (nub, transpose, findIndex, groupBy, (\\), nubBy)
-import Data.Maybe (catMaybes, fromMaybe)
+import Data.Maybe (catMaybes, fromMaybe, maybe)
 import System.Directory (createDirectoryIfMissing)
+import System.FilePath ((</>))
 import Text.CSV (CSV, parseCSVFromFile)
 
 import Graphics.Rendering.Chart.Easy
@@ -120,12 +121,8 @@ genGroupGraph
     -> [(String, [Maybe Double])]
     -> IO ()
 genGroupGraph outputFile units yindexes Config{..} benchNames values = do
-    -- XXX use filepath/path concatenation
     toFile
-        def (outputDir
-            ++ "/"
-            ++ outputFile
-            ++ ".svg") $ do
+        def ((outputDir </> outputFile) ++ ".svg") $ do
         case chartTitle of
             Just title -> do
                 layout_title .= title
@@ -384,6 +381,10 @@ extractIndexes (nameIdx, iterIdx, fieldIdx, csvlines) =
 bgraph :: FilePath -> FilePath -> String -> Config -> IO ()
 bgraph inputFile outputFile fieldName cfg@Config{..} = do
     createDirectoryIfMissing True outputDir
+    putStrLn $ "Creating chart "
+        ++ maybe "" (\x -> "[" ++ x ++ "]") chartTitle
+        ++ " at "
+        ++ show (outputDir </> outputFile)
 
     -- We assume the dataset is not big and therefore take liberties to process
     -- in a non-streaming fashion.
