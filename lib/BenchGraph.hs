@@ -434,8 +434,11 @@ bgraph inputFile outputFile fieldName cfg@Config{..} = do
                 & findIndexes "Name" "iters" fieldName
                 & extractIndexes
                   -- from here on three elements are guaranteed in each row.
-                  -- group successive iterations
-                & groupBy (\(x1:_) (x2:_) -> x1 == x2)
+                  -- group successive iterations. If the iteration number does
+                  -- not increase then it means it is another benchmark and not
+                  -- a continuation. This can happen if there is only one
+                  -- benchmark in two separate runs.
+                & groupBy (\(x1:i1:_) (x2:i2:_) -> x1 == x2 && i2 > i1)
                   -- reduce grouped iterations to a single row with the mean
                 & map (\xs -> [head $ map head xs, foldToMean $ map tail xs])
                  -- XXX send tuples [(String, Double)] instead of [[String]]
