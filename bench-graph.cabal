@@ -43,6 +43,7 @@ library
         , csv               >= 0.1     && < 0.2
         , directory         >= 1.2     && < 1.4
         , transformers      >= 0.4     && < 0.6
+        , Unique            >= 0.4     && < 0.5
 
 test-suite test
     type: exitcode-stdio-1.0

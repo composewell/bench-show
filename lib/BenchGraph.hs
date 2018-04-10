@@ -44,13 +44,15 @@ import Control.Monad (when)
 import Control.Monad.Trans.State.Lazy (get, put)
 import Data.Char (toUpper)
 import Data.Function ((&))
-import Data.List (nub, transpose, findIndex, groupBy)
+import Data.List (nub, transpose, findIndex, groupBy, (\\), nubBy)
 import Data.Maybe (catMaybes, fromMaybe)
 import System.Directory (createDirectoryIfMissing)
 import Text.CSV (CSV, parseCSVFromFile)
 
 import Graphics.Rendering.Chart.Easy
 import Graphics.Rendering.Chart.Backend.Diagrams
+
+import qualified Data.List.Unique as U
 
 -- | How to show the comparisons among benchmark groups.
 data ComparisonStyle =
@@ -230,28 +232,58 @@ getResultsForBenchGroup csvData classify groupName bmnames  =
 
 genGraph :: FilePath -> String -> Maybe [Double] -> Config -> CSV -> IO ()
 genGraph outfile units yindexes cfg@Config{..} csvData = do
+    let origNames = nub $ map head csvData
+        bmTuples = catMaybes $ map classifyBenchmark origNames
+
+    let origGroups = nub $ map fst bmTuples
+        bmgroups = sortBenchGroups origGroups
     when (bmgroups == []) $ error
         "No benchmark groups to plot. Please check your benchmark \
         \classifier (classifyBenchmarks), group filter (sortBenchGroups) or \
         \the input data"
 
+    when (bmgroups \\ origGroups /= []) $ error
+        "sortBenchGroups cannot add new groups to the original list."
+
+    -- assert that for each group we get the same bmnames
+    let grouped = groupBy (\(g1, _) (g2, _) -> g1 == g2) bmTuples
+        diffGroups = nubBy (\xs1 xs2 -> map snd xs1 == map snd xs2) grouped
+
+    when (length diffGroups /= 1) $ error $
+        "All groups must have exactly the same benchmarks. Please check \
+        \your benchmark classifier (classifyBenchmarks)."
+        ++ show diffGroups
+
+    let rep = U.repeated bmTuples
+        z = zip origNames bmTuples
+        zrep = filter (\(_, tup) -> tup `elem` rep) z
+    when (zrep /= []) $ do
+        error $
+            "classifyBenchmark cannot map different benchmarks to the same \
+            \name in the same group.\n"
+            ++ unlines (map show zrep)
+
+    let names = map snd bmTuples
+        bmnames = sortBenchmarks names
     when (bmnames == []) $ error
         "No benchmark names to plot. Please check your benchmark \
         \classifier (classifyBenchmarks), filter (sortBenchmarks) or \
         \the input data"
 
+    when (bmnames \\ names /= []) $ error
+        "sortBenchmarks cannot add new names to the original list."
+
     -- bmResults contains benchmark results for bmnames for each group
-    genGroupGraph outfile units yindexes cfg bmnames bmResults
+    let res = bmResults bmgroups bmnames
+    when (res == []) $ error
+        "Each benchmark being plotted must have the same number of results \
+        \in the CSV input"
+
+    genGroupGraph outfile units yindexes cfg bmnames res
 
     where
 
-    getBenchNames = nub $ map head csvData
-    bmTuples = catMaybes $ map classifyBenchmark getBenchNames
-    -- XXX assert that for each group we get the same bmnames
-    bmnames = sortBenchmarks $ nub $ map snd bmTuples
-    bmgroups = sortBenchGroups $ nub $ map fst bmTuples
-
-    grpGetResults groupName =
+    grpGetResults bmnames groupName =
         let res = getResultsForBenchGroup csvData classifyBenchmark
                                           groupName bmnames
         in case res of
@@ -265,7 +297,7 @@ genGraph outfile units yindexes cfg@Config{..} csvData = do
 
     -- this produces results for all groups
     -- [(groupName, [Maybe Double])]
-    bmResults = concat $ catMaybes $ map grpGetResults bmgroups
+    bmResults grps names = concat $ catMaybes $ map (grpGetResults names) grps
 
 getFieldIndexInLine :: String -> [String] -> Maybe Int
 getFieldIndexInLine fieldName fields =
@@ -400,7 +432,7 @@ bgraph inputFile outputFile fieldName cfg@Config{..} = do
                   -- of iterations in the iteration count field.
                 & findIndexes "Name" "iters" fieldName
                 & extractIndexes
-                  -- from here on three elements are guaranteed in each row
+                  -- from here on three elements are guaranteed in each row.
                   -- group successive iterations
                 & groupBy (\(x1:_) (x2:_) -> x1 == x2)
                   -- reduce grouped iterations to a single row with the mean
