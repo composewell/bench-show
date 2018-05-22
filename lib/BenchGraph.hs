@@ -44,7 +44,7 @@ import Control.Monad (when)
 import Control.Monad.Trans.State.Lazy (get, put)
 import Data.Char (toUpper)
 import Data.Function ((&))
-import Data.List (nub, transpose, findIndex, groupBy, (\\), nubBy)
+import Data.List (nub, transpose, findIndex, groupBy, (\\))
 import Data.Maybe (catMaybes, fromMaybe, maybe)
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>))
@@ -239,17 +239,10 @@ genGraph outfile units yindexes cfg@Config{..} csvData = do
         \classifier (classifyBenchmarks), group filter (sortBenchGroups) or \
         \the input data"
 
-    when (bmgroups \\ origGroups /= []) $ error
-        "sortBenchGroups cannot add new groups to the original list."
-
-    -- assert that for each group we get the same bmnames
-    let grouped = groupBy (\(g1, _) (g2, _) -> g1 == g2) bmTuples
-        diffGroups = nubBy (\xs1 xs2 -> map snd xs1 == map snd xs2) grouped
-
-    when (length diffGroups /= 1) $ error $
-        "All groups must have exactly the same benchmarks. Please check \
-        \your benchmark classifier (classifyBenchmarks)."
-        ++ show diffGroups
+    let newGroups = bmgroups \\ origGroups
+    when (newGroups /= []) $ error $
+        "sortBenchGroups cannot add new groups to the original list. The\
+        \following new groups were added: " ++ show newGroups
 
     let rep = U.repeated bmTuples
         z = zip origNames bmTuples
@@ -257,18 +250,22 @@ genGraph outfile units yindexes cfg@Config{..} csvData = do
     when (zrep /= []) $ do
         error $
             "classifyBenchmark cannot map different benchmarks to the same \
-            \name in the same group.\n"
+            \name under the same group.\n"
             ++ unlines (map show zrep)
 
-    let names = map snd bmTuples
+    let names = nub $ map snd bmTuples
         bmnames = sortBenchmarks names
     when (bmnames == []) $ error
         "No benchmark names to plot. Please check your benchmark \
         \classifier (classifyBenchmarks), filter (sortBenchmarks) or \
         \the input data"
 
-    when (bmnames \\ names /= []) $ error
-        "sortBenchmarks cannot add new names to the original list."
+    let newNames = bmnames \\ names
+    when (newNames /= []) $ error $
+        "sortBenchmarks cannot add new names to the original list. The\
+        \following new names were added: " ++ show newNames
+
+    mapM_ (checkBenchNameInGrps bmgroups bmTuples) bmnames
 
     -- bmResults contains benchmark results for bmnames for each group
     let res = bmResults bmgroups bmnames
@@ -295,6 +292,16 @@ genGraph outfile units yindexes cfg@Config{..} csvData = do
     -- this produces results for all groups
     -- [(groupName, [Maybe Double])]
     bmResults grps names = concat $ catMaybes $ map (grpGetResults names) grps
+
+    checkBenchNameInGrps bmgroups bmTuples nm =
+        let appearsIn = nub $ map fst $ filter (\(_, n) -> nm == n) bmTuples
+            xs = bmgroups \\ appearsIn
+        in if not (null xs)
+           then error $
+            "Each benchmark name must appear in all benchmark groups.\n\
+            \Benchmark " ++ nm ++ " does not appear in " ++ show xs ++
+            "\nPlease check your benchmark classifier (classifyBenchmarks).\n"
+           else return ()
 
 getFieldIndexInLine :: String -> [String] -> Maybe Int
 getFieldIndexInLine fieldName fields =

@@ -1,6 +1,5 @@
 module Main where
 
-import Data.Char (isSpace)
 import Data.List.Split (splitOn)
 import Data.Maybe (catMaybes)
 import System.Process.Typed (readProcess_)
@@ -13,49 +12,17 @@ import qualified Data.Text.Lazy.Encoding as T
 
 -- XXX use package name and a tag
 packages :: [String]
-packages = ["list", "pure-vector", "vector", "streamly", "streaming", "conduit", "pipes", "machines", "drinkery"]
-
-{-
--- pairs of benchmark group titles and corresponding list of benchmark
--- prefixes i.e. without the package name at the end.
-bmGroups :: [(String, [String])]
-bmGroups =
-    [
-      -- Operations are listed in increasing cost order
-      ( "Cheaper Operations (Shorter is Faster)"
-      , [
-          "elimination/toNull"
-        , "filtering/drop-all"
-        , "filtering/dropWhile-true"
-        , "filtering/filter-all-out"
-        , "elimination/last"
-        , "elimination/fold"
-        -- "filtering/take-one"
-        , "transformation/map"
-        , "filtering/take-all"
-        , "filtering/takeWhile-true"
-        , "filtering/filter-all-in"
-        , "filtering/filter-even"
-        , "transformation/scan"
-        ]
-      )
-
-    , ( "Expensive operations (Shorter is Faster)"
-      , [ "transformation/mapM"
-        , "zip"
-        , "transformation/concat"
-        , "elimination/toList"
-        ]
-      )
-    , ( "Composed (4x) operations (Shorter is Faster)"
-      , [ "compose/all-out-filters"
-        , "compose/all-in-filters"
-        , "compose/mapM"
-        , "compose/map-with-all-in-filter"
-        ]
-      )
+packages =
+    [ "list"
+    , "pure-vector"
+    , "vector"
+    , "streamly"
+    , "streaming"
+    , "conduit"
+    , "pipes"
+    , "machines"
+    , "drinkery"
     ]
-    -}
 
 -------------------------------------------------------------------------------
 main :: IO ()
@@ -69,7 +36,8 @@ main = do
             case elem x packages of
                 False -> Nothing
                 True -> Just (x, y)
-        -- [(packagename, version)]
+
+        -- pkginfo is [(packagename, version)]
         pkginfo =
               catMaybes
             $ map match
@@ -81,8 +49,7 @@ main = do
                 Nothing -> p
                 Just v -> p ++ "-" ++ v
 
-    let -- titleToFileName t = filter (not . isSpace) (takeWhile (/= '(') t)
-        title = "Cheaper Operations (Lower is Better)"
+    let title = "Cheaper Operations (Lower is Better)"
         prefixes =
             [ "elimination/toNull"
             , "filtering/drop-all"
@@ -110,8 +77,7 @@ main = do
                 let i = intersect (map (last . splitOn "/") prefixes) bs
                 in i ++ (bs \\ i)
             , sortBenchGroups = \gs ->
-                let i = intersectBy (\x y -> head (splitOn "-" x) == y)
-                                    gs packages
+                let i = intersect (map suffixVersion packages) gs
                 in i ++ (gs \\ i)
             }
 
