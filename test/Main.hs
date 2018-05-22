@@ -1,14 +1,14 @@
 module Main where
 
 import Data.List.Split (splitOn)
-import Data.Maybe (catMaybes)
-import System.Process.Typed (readProcess_)
+-- import Data.Maybe (catMaybes)
+-- import System.Process.Typed (readProcess_)
 import BenchGraph (bgraph, defaultConfig, Config(..), ComparisonStyle(..))
 
 import Data.List
 
-import qualified Data.Text.Lazy as T
-import qualified Data.Text.Lazy.Encoding as T
+-- import qualified Data.Text.Lazy as T
+-- import qualified Data.Text.Lazy.Encoding as T
 
 -- XXX use package name and a tag
 packages :: [String]
@@ -27,6 +27,7 @@ packages =
 -------------------------------------------------------------------------------
 main :: IO ()
 main = do
+    {-
     (out, _) <- readProcess_ "stack --system-ghc list-dependencies --bench"
 
     -- Get our streaming packages and their versions
@@ -42,6 +43,8 @@ main = do
               catMaybes
             $ map match
             $ map words (lines (T.unpack $ T.decodeUtf8 out))
+    -}
+    let pkginfo = []
 
     -- suffix versions to packages
     let suffixVersion p =
