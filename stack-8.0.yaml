@@ -1,8 +1,7 @@
-resolver: lts-11.10
+resolver: lts-9.21
 packages:
 - '.'
 extra-deps:
-  - Chart-diagrams-1.8.3
   - SVGFonts-1.6.0.3
   - diagrams-core-1.4.0.1
   - diagrams-lib-1.4.2

@@ -15,7 +15,7 @@ homepage:            https://github.com/composewell/bench-graph
 bug-reports:         https://github.com/composewell/bench-graph/issues
 license:             BSD3
 license-file:        LICENSE
-tested-with:         GHC==7.10.3, GHC==8.0.2, GHC==8.2.2, GHC==8.4.1
+tested-with:         GHC==7.10.3, GHC==8.0.2, GHC==8.2.2
 author:              Harendra Kumar
 maintainer:          harendra.kumar@gmail.com
 copyright:           2018 Composewell Technologies
@@ -28,6 +28,9 @@ extra-source-files:
     Changelog.md
     README.md
     stack.yaml
+    stack-8.0.yaml
+    test/results.csv
+    test/results.csvraw
 
 source-repository head
     type: git

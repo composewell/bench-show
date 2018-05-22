@@ -155,7 +155,8 @@ genGroupGraph outputFile units yindexes Config{..} benchNames values = do
             Just style@LegendStyle{..} -> do
                 let s = style { _legend_plot_size = 22
                               -- , _legend_margin = 40
-                              , _legend_position = LegendBelow
+                              -- This is not available in versions <= 1.8.2
+                              -- , _legend_position = LegendBelow
                               , _legend_label_style = _legend_label_style
                                     { _font_size = 14 }
                               }
