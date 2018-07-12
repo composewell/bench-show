@@ -5,7 +5,3 @@ extra-deps:
   - Chart-1.9
   - Chart-diagrams-1.9
   - SVGFonts-1.6.0.3
-  - Unique-0.4.7.2
-
-# Required to compile Unique with ghc-8.4
-allow-newer: true

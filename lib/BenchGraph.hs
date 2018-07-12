@@ -45,7 +45,7 @@ import Control.Monad (when)
 import Control.Monad.Trans.State.Lazy (get, put)
 import Data.Char (toUpper)
 import Data.Function ((&))
-import Data.List (nub, transpose, findIndex, groupBy, (\\))
+import Data.List (nub, transpose, findIndex, groupBy, (\\), group, sort)
 import Data.Maybe (catMaybes, fromMaybe, maybe)
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>))
@@ -54,7 +54,10 @@ import Text.CSV (CSV, parseCSVFromFile)
 import Graphics.Rendering.Chart.Easy
 import Graphics.Rendering.Chart.Backend.Diagrams
 
-import qualified Data.List.Unique as U
+-- Utilities
+-- Find items that are repeated more than once
+getRepeated :: Ord a => [a] -> [a]
+getRepeated = map head . filter ((>1) . length) . group . sort
 
 -- | How to show the comparisons among benchmark groups.
 --
@@ -258,7 +261,7 @@ genGraph outfile units yindexes cfg@Config{..} csvData = do
         "sortBenchGroups cannot add new groups to the original list. The\
         \following new groups were added: " ++ show newGroups
 
-    let rep = U.repeated bmTuples
+    let rep = getRepeated bmTuples
         z = zip origNames bmTuples
         zrep = filter (\(_, tup) -> tup `elem` rep) z
     when (zrep /= []) $ do
