@@ -1,3 +1,4 @@
+# packcheck-0.3.1
 # You can use any of the options supported by packcheck as environment
 # variables here.  See https://github.com/harendra-kumar/packcheck for all
 # options and their explanation.
@@ -20,6 +21,7 @@ environment:
     # DISABLE_BENCH: "y"
     # DISABLE_DOCS: "y"
     # DISABLE_SDIST_BUILD: "y"
+    # DISABLE_DIST_CHECKS: "y"
     ENABLE_INSTALL: "y"
 
     # ------------------------------------------------------------------------
@@ -57,7 +59,7 @@ environment:
     # If you have not committed packcheck.sh in your repo at PACKCHECK_LOCAL_PATH
     # then it is automatically pulled from this URL.
     PACKCHECK_GITHUB_URL: "https://raw.githubusercontent.com/harendra-kumar/packcheck"
-    PACKCHECK_GITHUB_COMMIT: "4aba0f0aa89a71b375ce1b9b03491bff33fe28f2"
+    PACKCHECK_GITHUB_COMMIT: "caa581a30f6423f6bdbf9b1b3b7c0e07eaa549fd"
 
 cache:
   - "%STACK_ROOT%"
@@ -79,4 +81,5 @@ before_test:
 test_script:
 - stack setup > nul
 - for /f "usebackq tokens=*" %%i in (`where 7z.exe`) do set PATH7Z=%%i\..
-- chcp 65001 && stack exec bash -- -c "chmod +x %PACKCHECK_LOCAL_PATH%; %PACKCHECK_LOCAL_PATH% stack PATH=/usr/bin:\"%PATH7Z%\""
+- for /f "usebackq tokens=*" %%i in (`where git.exe`) do set PATHGIT=%%i\..
+- chcp 65001 && stack exec bash -- -c "chmod +x %PACKCHECK_LOCAL_PATH%; %PACKCHECK_LOCAL_PATH% stack PATH=/usr/bin:\"%PATH7Z%\":\"%PATHGIT%\""
