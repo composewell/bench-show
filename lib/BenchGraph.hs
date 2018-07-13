@@ -47,9 +47,11 @@ import Data.Char (toUpper)
 import Data.Function ((&))
 import Data.List (nub, transpose, findIndex, groupBy, (\\), group, sort)
 import Data.Maybe (catMaybes, fromMaybe, maybe)
+import Debug.Trace (trace)
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>))
 import Text.CSV (CSV, parseCSVFromFile)
+import Text.Read (readMaybe)
 
 import Graphics.Rendering.Chart.Easy
 import Graphics.Rendering.Chart.Backend.Diagrams
@@ -199,21 +201,23 @@ genGroupGraph outputFile units yindexes Config{..} benchNames values = do
         plot $ fmap plotBars $ bars benchNames (addIndexes (map modifyVal vals))
 
 -- [[Double]] each list is multiple results for each benchmark
-transposeLists :: [[a]] -> Maybe [[Maybe a]]
-transposeLists xs =
+transposeLists :: Show a => String -> [[a]] -> Maybe [[Maybe a]]
+transposeLists gname xs =
     -- If each benchmark does not have the same number of results then reject
     -- all because the results may not correspond with each other when zipped.
     case nub $ map length xs of
-        [0] -> Nothing
-        [n] ->
+        [0] -> trace ("Warning! " ++ gname ++ ": No results") Nothing
+        [n] -> -- all lists are of the same length 'n'
             let ys = map (convertToMaybe n) xs
             in Just $ transpose ys
-        [0,n] ->
+        [0,n] -> -- some lists are empty others are of the same length 'n'
             -- some packages may have missing benchmarks
             -- fill the empty results with Nothing
             let ys = map (convertToMaybe n) xs
             in Just $ transpose ys
-        _ -> Nothing
+        _ -> trace ("Warning! " ++ gname
+                ++ ": has multiple runs with different number of benchmarks\n"
+                ++ show xs) Nothing
     where
         convertToMaybe n zs = case zs of
             [] -> replicate n Nothing
@@ -230,7 +234,11 @@ getResultsForBenchGroup
     -> Maybe [[Maybe Double]]
 getResultsForBenchGroup csvData classify groupName bmnames  =
     -- XXX this can be quite inefficient, need to do it better
-    transposeLists $ map getBenchmarkMeans bmnames
+    -- the map results in a list of lists. Where each inner list consists of
+    -- multiple values belonging to the same benchmark, each value is from a
+    -- different benchmark run. We transpose the values to get all benchmark
+    -- values from a single run together.
+    transposeLists groupName $ map getBenchmarkValues bmnames
 
     where
 
@@ -239,10 +247,16 @@ getResultsForBenchGroup csvData classify groupName bmnames  =
             Nothing -> False
             Just (g, n) -> g == groupName && n == name
 
-    getBenchmarkMeans :: String -> [Double]
-    getBenchmarkMeans bmname =
-        -- field at index 1 is the mean
-        map read $ map (!! 1) $ filter (match bmname .  head) csvData
+    getBenchmarkValues :: String -> [Double]
+    getBenchmarkValues bmname =
+        -- Filter all the lines from the CSV data that belong to the given
+        -- benchmark group and bmname and read the field value at index 1.
+        -- Usually the resulting list will have a single element. However, when
+        -- we have multiple runs with the same benchgroup name then we may have
+        -- multiple elements in the resulting list.
+        map (\(_, y) -> read y)
+            $ map (\xs -> (xs !! 0, xs !! 1))
+            $ filter (match bmname .  head) csvData
 
 genGraph :: FilePath -> String -> Maybe [Double] -> Config -> CSV -> IO ()
 genGraph outfile units yindexes cfg@Config{..} csvData = do
@@ -284,8 +298,19 @@ genGraph outfile units yindexes cfg@Config{..} csvData = do
 
     mapM_ (checkBenchNameInGrps bmgroups bmTuples) bmnames
 
-    -- bmResults contains benchmark results for bmnames for each group
-    let res = bmResults bmgroups bmnames
+    -- this produces results for all groups
+    -- Each group may have multiple results, in that case the group name is
+    -- indexed e.g. streamly(1), streamly(2) etc.
+    -- returns [(groupName, Maybe [Maybe Double])]
+    let grpResults = concat $ map (grpGetResults bmnames) bmgroups
+        filterJust (gName, res) =
+            case res of
+                Nothing -> do
+                    putStrLn $ "Warning! no results found for benchmark group " ++ gName
+                    return Nothing
+                Just x -> return $ Just (gName, x)
+    res0 <- mapM filterJust grpResults
+    let res = catMaybes res0
     when (res == []) $ error
         "Each benchmark being plotted must have the same number of results \
         \in the CSV input"
@@ -298,17 +323,14 @@ genGraph outfile units yindexes cfg@Config{..} csvData = do
         let res = getResultsForBenchGroup csvData classifyBenchmark
                                           groupName bmnames
         in case res of
-            Nothing -> Nothing
+            Nothing -> [(groupName, Nothing)]
             Just xs ->
                 case length xs of
-                    0 -> Nothing
-                    1 -> Just $ map (groupName,) xs
-                    _ -> Just $ zipWith (withIndexes groupName) [(1::Int)..] xs
+                    0 -> [(groupName, Nothing)]
+                    1 -> map (groupName,) (map Just xs)
+                    _ -> zipWith (withIndexes groupName) [(1::Int)..]
+                                 (map Just xs)
     withIndexes groupName indx y = (groupName ++ "(" ++ show indx ++ ")", y)
-
-    -- this produces results for all groups
-    -- [(groupName, [Maybe Double])]
-    bmResults grps names = concat $ catMaybes $ map (grpGetResults names) grps
 
     checkBenchNameInGrps bmgroups bmTuples nm =
         let appearsIn = nub $ map fst $ filter (\(_, n) -> nm == n) bmTuples
@@ -320,40 +342,52 @@ genGraph outfile units yindexes cfg@Config{..} csvData = do
             "\nPlease check your benchmark classifier (classifyBenchmarks).\n"
            else return ()
 
-getFieldIndexInLine :: String -> [String] -> Maybe Int
-getFieldIndexInLine fieldName fields =
-    findIndex (\x -> map toUpper x == map toUpper fieldName) fields
+eqCaseInsensitive :: String -> String -> Bool
+eqCaseInsensitive a b = map toUpper a == map toUpper b
+
+getFieldIndexInLine :: String -> (Int, [String]) -> Maybe (Int, Int)
+getFieldIndexInLine fieldName (lineno, fields) =
+    fmap (lineno,) $
+        findIndex (\x -> eqCaseInsensitive x fieldName) fields
 
 -- can return multiple indexes or empty list
-getFieldIndexUnchecked :: String -> [[String]] -> [Int]
+getFieldIndexUnchecked :: String -> [(Int, [String])] -> [(Int, Int)]
 getFieldIndexUnchecked fieldName csvlines =
     nub $ catMaybes $ map (getFieldIndexInLine fieldName) csvlines
 
-getFieldIndexChecked :: String -> [[String]] -> Int
+getFieldIndexChecked :: String -> [(Int, [String])] -> Int
 getFieldIndexChecked fieldName csvlines =
     let idxs = getFieldIndexUnchecked fieldName csvlines
     in case idxs of
-        [x] -> x
+        [(_, x)] -> x
         [] -> error $ "Field name [" ++ fieldName
                       ++ "] does not occur in any line of "
                       ++ "the CSV input. Is the header line missing?"
         _ -> error $ "Field [" ++ fieldName
-                     ++ "] found at different indexes [" ++ show idxs
+                     ++ "] found at different indexes [(line, column): " ++ show idxs
                      ++ "] in different lines of CSV input"
 
 -- Find the indexes of benchmark name, iterations and the requested field to be
 -- plotted, also remove the header lines from the csv input and return the
 -- cleaned up lines.
+-- Returns
+-- ( index of the name field
+-- , index of the iter field
+-- , index of the field being plotted
+-- , CSV lines without the header lines
+-- )
+--
 findIndexes :: String
            -> String
            -> String
-           -> [[String]]
-           -> (Int, Maybe Int, Int, [[String]])
+           -> [(Int, [String])]
+           -> (Int, Maybe Int, Int, [(Int, [String])])
 findIndexes benchmarkNameField iterationField fieldName csvlines =
     let fieldIdx = getFieldIndexChecked fieldName csvlines
         iterIdxs = getFieldIndexUnchecked iterationField csvlines
         nameIdxs = getFieldIndexUnchecked benchmarkNameField csvlines
-        csvlines' = filter (\xs -> xs !! fieldIdx /= fieldName) csvlines
+        csvlines' = filter (\(_, xs) ->
+            (not $ (xs !! fieldIdx) `eqCaseInsensitive` fieldName)) csvlines
     in case nameIdxs of
         [] -> case iterIdxs of
             [] -> -- just to show an error
@@ -376,16 +410,25 @@ findIndexes benchmarkNameField iterationField fieldName csvlines =
             , csvlines'
             )
 
--- XXX show a better error message when indexing fails
-extractIndexes :: (Int, Maybe Int, Int, [[String]]) -> [[String]]
+--  Keep the CSV columns corresponding to the provided indexes and remove the
+--  unwanted columns.
+extractIndexes :: (Int, Maybe Int, Int, [(Int, [String])]) -> [(Int, [String])]
 extractIndexes (nameIdx, iterIdx, fieldIdx, csvlines) =
-    let zipList = zipWith (++)
-    in map (\xs -> [xs !! nameIdx]) csvlines
+    let zipList = zipWith (\(l, xs) (_, ys) -> (l, xs ++ ys))
+    in map (indexWithError nameIdx "name") csvlines
         `zipList`
             case iterIdx of
-                Nothing -> repeat ["1"]
-                Just idx -> map (\xs -> [xs !! idx]) csvlines
-        `zipList` map (\xs -> [xs !! fieldIdx]) csvlines
+                Nothing  -> repeat (1, ["1"])
+                Just idx -> map (indexWithError idx "iter") csvlines
+        `zipList` map (indexWithError fieldIdx "requested") csvlines
+    where
+
+    indexWithError :: Int -> String -> (Int, [String]) -> (Int, [String])
+    indexWithError idx colName (l, xs) =
+        if (length xs < idx)
+        then error $ "Line " ++ show l ++ " " ++ show colName
+                     ++ " column at index " ++ show idx ++ " not present"
+        else (l, [xs !! idx])
 
 -- XXX display GHC version as well
 -- XXX display the OS/arch
@@ -448,16 +491,27 @@ bgraph inputFile outputFile fieldName cfg@Config{..} = do
                                     in Just $ take (nInterval + 1) [rmin, rmin + r'..]
                                 False -> Just $ take (nInterval + 1) [rangeMin, rangeMin + r..]
 
+                readWithError :: Read a => String -> String -> Int -> (Int, [String]) -> a
+                readWithError fname typ idx (lno, xs) =
+                    case readMaybe (xs !! idx) of
+                        Nothing -> error $ "Cannot read " ++ show fname
+                            ++ " field as a " ++ typ ++ " type at line number "
+                            ++ show lno
+                        Just n -> n
+
+                -- xs is [(lineno, [iter, field])]
                 foldToMean xs =
-                    let iters  = map (read . (!! 0)) xs :: [Double]
-                        values = map (read . (!! 1)) xs :: [Double]
+                    let iters  = map (readWithError "iter" "Double" 0) xs :: [Double]
+                        values = map (readWithError "requested" "Double" 1) xs :: [Double]
                         mean = sum values / sum iters
                     in show $ case isTimeField of
                         True -> mean * multiplier
                         False -> mean
 
-             in    -- cleanup blank rows
-                  filter (/= [""]) csvlines
+             in   -- Add line numbers for error reporting
+                  zip [1..] csvlines
+                  -- cleanup blank rows
+                & filter (\(_,xs) -> xs /= [""])
                   -- An iteration field indicates that consecutive rows with
                   -- the same benchmark name have results from different
                   -- iterations of the same benchmark and the measurement
@@ -468,11 +522,19 @@ bgraph inputFile outputFile fieldName cfg@Config{..} = do
                   -- from here on three elements are guaranteed in each row.
                   -- group successive iterations. If the iteration number does
                   -- not increase then it means it is another benchmark and not
-                  -- a continuation. This can happen if there is only one
-                  -- benchmark in two separate runs.
-                & groupBy (\(x1:i1:_) (x2:i2:_) -> x1 == x2 && i2 > i1)
-                  -- reduce grouped iterations to a single row with the mean
-                & map (\xs -> [head $ map head xs, foldToMean $ map tail xs])
+                  -- the next iteration of the previous benchmark. This can
+                  -- happen if there is only one benchmark in two separate
+                  -- runs.
+                & groupBy (\l1@(_, x:_) l2@(_, y:_) -> x == y
+                    && ((readWithError "iter" "Int" 1 l2 :: Int) >
+                        (readWithError "iter" "Int" 1 l1 :: Int)))
+                  -- reduce grouped iterations to a single row with the mean.
+                  -- xs below is a list of tuples [(lineno, [name, iter, field]]
+                  -- we send [(lineno, [iter, field])] to foldToMean.
+                & map (\xs -> [ head $ map (head . snd) xs
+                              , foldToMean $ map (\(l, ys) -> (l, tail ys)) xs
+                              ]
+                      )
                  -- XXX send tuples [(String, Double)] instead of [[String]]
                  -- XXX determine the units based on the field name
                  -- We can pass here the units to be displayed by the chart
