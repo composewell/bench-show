@@ -1,5 +1,5 @@
 name:               bench-graph
-version:            0.1.2
+version:            0.1.3
 synopsis:           Plot and compare benchmarks
 description:
   Plot benchmarks and compare them. An easy to use package to produce pretty

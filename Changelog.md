@@ -1,4 +1,4 @@
-## Unreleased
+## 0.1.3
 
 * Add maxrss plotting support
 
