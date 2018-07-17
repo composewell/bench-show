@@ -467,16 +467,31 @@ bgraph inputFile outputFile fieldName cfg@Config{..} = do
     case csvData of
         Left e -> error $ show e
         Right csvlines -> do
+            -- XXX make the multiplier and units configurable
+            -- XXX Use a separate table for the defaults
             let isTimeField =
                     let x = map toUpper fieldName
                     in x == "TIME" || x == "MEAN"
+            let isAllocationField =
+                    let x = map toUpper fieldName
+                    in x == "ALLOCATED" || x == "MAXRSS"
+            -- By default the fields are considered "scaled" fields that is
+            -- they scale by iterations. However in case of maxrss field it is
+            -- a max value across the experiment and does not scale by
+            -- iterations, in this case we just need to take a mean or max
+            -- without scaling.
+            let isMaxField =
+                    let x = map toUpper fieldName
+                    in x == "MAXRSS"
 
                 (multiplier, units) =
                     case isTimeField of
                         -- XXX automatically use ns/us/ms/sec on the scale
                         -- get the max and convert it to appropriate unit
                         True -> (1000, "ms")
-                        False -> (1, "")
+                        False -> case isAllocationField of
+                            True -> (1/2^(20 :: Int), "MiB")
+                            False -> (1, "")
 
                 -- XXX need the ability to specify Units in the scale
                 yindexes =
@@ -504,9 +519,11 @@ bgraph inputFile outputFile fieldName cfg@Config{..} = do
                     let iters  = map (readWithError "iter" "Double" 0) xs :: [Double]
                         values = map (readWithError "requested" "Double" 1) xs :: [Double]
                         mean = sum values / sum iters
-                    in show $ case isTimeField of
-                        True -> mean * multiplier
-                        False -> mean
+                    in show $ mean * multiplier
+
+                foldToMax xs =
+                    let values = map (readWithError "requested" "Double" 1) xs :: [Double]
+                    in show $ (maximum values) * multiplier
 
              in   -- Add line numbers for error reporting
                   zip [1..] csvlines
@@ -532,7 +549,9 @@ bgraph inputFile outputFile fieldName cfg@Config{..} = do
                   -- xs below is a list of tuples [(lineno, [name, iter, field]]
                   -- we send [(lineno, [iter, field])] to foldToMean.
                 & map (\xs -> [ head $ map (head . snd) xs
-                              , foldToMean $ map (\(l, ys) -> (l, tail ys)) xs
+                              , if isMaxField
+                                then foldToMax  $ map (\(l, ys) -> (l, tail ys)) xs
+                                else foldToMean $ map (\(l, ys) -> (l, tail ys)) xs
                               ]
                       )
                  -- XXX send tuples [(String, Double)] instead of [[String]]

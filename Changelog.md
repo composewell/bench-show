@@ -1,3 +1,7 @@
+## Unreleased
+
+* Add maxrss plotting support
+
 ## 0.1.2
 
 * Fixed a bug that caused missing graphs in some cases when multiple iterations

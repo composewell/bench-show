@@ -100,3 +100,4 @@ main = do
     bgraph "test/results.csvraw" "csvraw-gcWallSeconds-full" "gcWallSeconds" cfg
     bgraph "test/results.csvraw" "csvraw-gcCpuSeconds-full" "gcCpuSeconds" cfg
     bgraph "test/results.csvraw" "csvraw-cycles-full" "cycles" cfg
+    bgraph "test/results.csvraw" "csvraw-maxrss-full" "maxrss" cfg
