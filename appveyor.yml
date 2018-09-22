@@ -1,4 +1,4 @@
-# packcheck-0.3.1
+# packcheck-0.4.0
 # You can use any of the options supported by packcheck as environment
 # variables here.  See https://github.com/harendra-kumar/packcheck for all
 # options and their explanation.
@@ -20,9 +20,9 @@ environment:
     # DISABLE_TEST: "y"
     # DISABLE_BENCH: "y"
     # DISABLE_DOCS: "y"
-    DISABLE_SDIST_BUILD: "y"
+    # DISABLE_SDIST_BUILD: "y"
     # DISABLE_DIST_CHECKS: "y"
-    # ENABLE_INSTALL: "y"
+    ENABLE_INSTALL: "y"
 
     # ------------------------------------------------------------------------
     # stack options
@@ -59,7 +59,11 @@ environment:
     # If you have not committed packcheck.sh in your repo at PACKCHECK_LOCAL_PATH
     # then it is automatically pulled from this URL.
     PACKCHECK_GITHUB_URL: "https://raw.githubusercontent.com/harendra-kumar/packcheck"
-    PACKCHECK_GITHUB_COMMIT: "caa581a30f6423f6bdbf9b1b3b7c0e07eaa549fd"
+    PACKCHECK_GITHUB_COMMIT: "16029b049135d9f1ad51469f68290797fa3c33a8"
+
+    # Override the temp directory to avoid sed escaping issues
+    # See https://github.com/haskell/cabal/issues/5386
+    TMP: "c:\\tmp"
 
 cache:
   - "%STACK_ROOT%"
