@@ -44,8 +44,8 @@ import Control.Arrow (second)
 import Control.Monad (when)
 import Control.Monad.Trans.State.Lazy (get, put)
 import Data.Char (toUpper)
-import Data.Function ((&))
-import Data.List (nub, transpose, findIndex, groupBy, (\\), group, sort)
+import Data.Function ((&), on)
+import Data.List (nub, nubBy, transpose, findIndex, groupBy, (\\), group, sort)
 import Data.Maybe (catMaybes, fromMaybe, maybe)
 import Debug.Trace (trace)
 import System.Directory (createDirectoryIfMissing)
@@ -353,7 +353,8 @@ getFieldIndexInLine fieldName (lineno, fields) =
 -- can return multiple indexes or empty list
 getFieldIndexUnchecked :: String -> [(Int, [String])] -> [(Int, Int)]
 getFieldIndexUnchecked fieldName csvlines =
-    nub $ catMaybes $ map (getFieldIndexInLine fieldName) csvlines
+    nubBy ((==) `on` snd) $
+        catMaybes $ map (getFieldIndexInLine fieldName) csvlines
 
 getFieldIndexChecked :: String -> [(Int, [String])] -> Int
 getFieldIndexChecked fieldName csvlines =
