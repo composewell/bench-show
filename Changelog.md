@@ -1,3 +1,9 @@
+## 0.1.4
+
+* Fix a bug resulting in a bogus error, something like "Field [time] found at
+  different indexes.." even though the field has exactly the same index at all
+  places.
+
 ## 0.1.3
 
 * Add maxrss plotting support
