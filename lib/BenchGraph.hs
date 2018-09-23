@@ -81,6 +81,17 @@ data ComparisonStyle =
                    -- from the first group for the subsequent groups.
     deriving Eq
 
+{-
+-- | Specify the set of results to consider for plotting when there are
+-- multiple sets in the input file. An empty list represents all sets. Index
+-- starts with zero.
+data Selection =
+      Indices [Word]  -- ^ Indices from the beginning, 0 means first set in
+                      -- the file.
+    | RIndices [Word] -- ^ Indices from the end of the files, 0 means the last
+                      -- set in the file.
+-}
+
 -- | Configuration governing generation of chart.
 --
 -- @since 0.1.0
@@ -90,6 +101,9 @@ data Config = Config
       outputDir   :: FilePath
     -- | The title to be embedded in the generated graph.
     , chartTitle  :: Maybe String
+    -- | When there are multiple sets of results in the input file, specify
+    -- the sets to be plotted. Default is all of them.
+    -- , selection   :: Selection
     -- | User supplied function that translates a benchmark name into a tuple
     -- @(groupname, benchname)@, where @groupname@ is the name of the group the
     -- benchmark should be placed in and @benchname@ is the translated
@@ -131,6 +145,7 @@ defaultConfig :: Config
 defaultConfig = Config
     { outputDir         = "."
     , chartTitle        = Nothing
+--  , selection         = Indices []
     , classifyBenchmark = \b -> Just ("default", b)
     , sortBenchmarks    = id
     , sortBenchGroups   = id
