@@ -33,20 +33,19 @@ results of both, or as the difference from a baseline.
 See the [test
 file](https://github.com/composewell/bench-graph/blob/master/test/Main.hs) for
 a complicated example. Simpler charts can be plotted with just a few lines of
-code. Here is a sample plot from the data in [test/results.csv
-](https://github.com/composewell/bench-graph/blob/master/test/results.csv),
-showing the time taken by three packages:
+code. Here is a sample plot from the data in [test/results-doc.csv](https://github.com/composewell/bench-graph/blob/master/test/results-doc.csv),
+comparing the time taken by two packages:
 
-[![Full comparison time](https://github.com/composewell/bench-graph/blob/master/sample-charts/csvraw-time-full.svg)](https://github.com/composewell/bench-graph/blob/master/sample-charts/csvraw-time-full.svg)
+[![Full comparison time](https://github.com/composewell/bench-graph/blob/master/docs/mean-grouped.svg)](https://github.com/composewell/bench-graph/blob/master/docs/mean-grouped.svg)
 
 Here is a plot of the same data but this time showing full time for the first
 package and the difference in time (i.e. the excess time taken) for the other
-two packages.
+package.
 
-[![Delta comparison time](https://github.com/composewell/bench-graph/blob/master/sample-charts/csvraw-time-delta.svg)](https://github.com/composewell/bench-graph/blob/master/sample-charts/csvraw-time-delta.svg)
+[![Delta comparison time](https://github.com/composewell/bench-graph/blob/master/docs/mean-grouped-delta.svg)](https://github.com/composewell/bench-graph/blob/master/docs/csvraw-time-delta.svg)
 
-Just use `stack test` in this package and see all the charts generated in the
-`charts` directory.
+Just use `stack test` in this package and see the sample charts generated in
+the `docs` and `charts` directories.
 
 ## Plot Performance Regressions
 
@@ -59,17 +58,14 @@ $ ./bench.sh --help # prints help
 $ ./bench.sh --compare --base HEAD^
 ```
 
+The `bench-graph` code for this can be found
+[here](https://github.com/composewell/streamly/blob/master/benchmark/ChartLinear.hs).
+
 It generates a comparative graph of benchmark changes from the previous commit
 to the HEAD commit. The generated graph looks like this, the negative delta
 means there is performance improvement:
 
-[![Delta comparison time](https://github.com/composewell/bench-graph/blob/master/sample-charts/composition-scaling.svg)](https://github.com/composewell/bench-graph/blob/master/sample-charts/composition-scaling.svg)
-
-The `bench-graph` code for this can be found
-[here](https://github.com/composewell/streamly/blob/master/benchmark/ChartLinear.hs).
-
-The shell script functionality may be included in the `bench-graph` itself in
-future.
+[![Delta comparison time](https://github.com/composewell/bench-graph/blob/master/docs/mean-regression.svg)](https://github.com/composewell/bench-graph/blob/master/docs/mean-regression.svg)
 
 ## Plot Any Fields
 

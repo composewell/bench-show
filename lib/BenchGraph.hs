@@ -26,6 +26,17 @@
 -- in each benchmark group are placed together as a group and a legend is
 -- displayed to mark who is who.
 --
+-- In a raw benchmark file we may have data for multiple iterations of each
+-- benchmark. BenchGraph combines results of all iterations depending on the
+-- field type. For example if the field is "time" it takes the mean of all
+-- iterations and if the field is "maxrss" it takes the maximum of all
+-- iterations.
+--
+-- = Tutorial and Examples
+--
+-- See the tutorial module "BenchGraph.Tutorial" for a comprehensive guide to
+-- generating reports and graphs.
+--
 -- See the @test@ directory for an example of how to use it.
 -- A sample output can be found in the @sample-charts@ directory.
 
@@ -272,7 +283,7 @@ genGraph outfile units yindexes cfg@Config{..} csvData = do
 
     let newGroups = bmgroups \\ origGroups
     when (newGroups /= []) $ error $
-        "sortBenchGroups cannot add new groups to the original list. The\
+        "sortBenchGroups must not add new groups to the original list. The\
         \following new groups were added: " ++ show newGroups
 
     let rep = getRepeated bmTuples
@@ -280,7 +291,7 @@ genGraph outfile units yindexes cfg@Config{..} csvData = do
         zrep = filter (\(_, tup) -> tup `elem` rep) z
     when (zrep /= []) $ do
         error $
-            "classifyBenchmark cannot map different benchmarks to the same \
+            "classifyBenchmark must not map different benchmarks to the same \
             \name under the same group.\n"
             ++ unlines (map show zrep)
 
@@ -293,7 +304,7 @@ genGraph outfile units yindexes cfg@Config{..} csvData = do
 
     let newNames = bmnames \\ names
     when (newNames /= []) $ error $
-        "sortBenchmarks cannot add new names to the original list. The\
+        "sortBenchmarks must not add new names to the original list. The\
         \following new names were added: " ++ show newNames
 
     mapM_ (checkBenchNameInGrps bmgroups bmTuples) bmnames
