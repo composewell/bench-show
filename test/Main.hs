@@ -2,12 +2,13 @@
 
 module Main where
 
+import Data.List
 import Data.List.Split (splitOn)
 -- import Data.Maybe (catMaybes)
 -- import System.Process.Typed (readProcess_)
-import BenchGraph (bgraph, defaultConfig, Config(..), ComparisonStyle(..))
-
-import Data.List
+import BenchGraph
+       (defaultConfig, Config(..), ComparisonStyle(..), Granularity(..),
+        SortField(..), graphCmp)
 
 -- import qualified Data.Text.Lazy as T
 -- import qualified Data.Text.Lazy.Encoding as T
@@ -54,7 +55,7 @@ main = do
                 Nothing -> p
                 Just v -> p ++ "-" ++ v
 
-    let title = "Cheaper Operations (Lower is Better)"
+    let chartTitle = "Cheaper Operations (Lower is Better)"
         prefixes =
             [ "elimination/toNull"
             , "filtering/drop-all"
@@ -69,35 +70,43 @@ main = do
             , "filtering/filter-even"
             , "transformation/scan"
             ]
+        bsort bs =
+                let i = intersect (map (last . splitOn "/") prefixes) bs
+                in i ++ (bs \\ i)
         cfg = defaultConfig
-            { chartTitle = Just title
-            , outputDir = "charts"
+            { title = Just chartTitle
+            , outputDir = Just "charts"
             , classifyBenchmark = \bm ->
                 case any (`isPrefixOf` bm) prefixes of
                     True ->
                         let xs = reverse (splitOn "/" bm)
                         in Just (suffixVersion (xs !! 0), xs !! 1)
                     False -> Nothing
-            , sortBenchmarks = \bs ->
-                let i = intersect (map (last . splitOn "/") prefixes) bs
-                in i ++ (bs \\ i)
+            , sortBenchmarks = \g -> bsort $ map fst (g (Index 0))
             , sortBenchGroups = \gs ->
                 let i = intersect (map suffixVersion packages) gs
                 in i ++ (gs \\ i)
             }
 
-    bgraph "test/results.csv" "csv-mean-full" "mean" cfg
-    bgraph "test/results.csvraw" "csvraw-time-full" "time" cfg
-    bgraph "test/results.csvraw" "csvraw-time-delta" "time"
-            (cfg {setYScale = Just (-20000, 50000,7)
-                 , comparisonStyle = CompareDelta
-                 })
+    -- csv format
+    graphCmp "test/results.csv" "csv-full" cfg
 
-    bgraph "test/results.csvraw" "csvraw-allocated-full" "allocated" cfg
-    bgraph "test/results.csvraw" "csvraw-bytescopied-full" "bytesCopied" cfg
-    bgraph "test/results.csvraw" "csvraw-mutatorWallSeconds-full" "mutatorWallSeconds" cfg
-    bgraph "test/results.csvraw" "csvraw-mutatorCpuSeconds-full" "mutatorCpuSeconds" cfg
-    bgraph "test/results.csvraw" "csvraw-gcWallSeconds-full" "gcWallSeconds" cfg
-    bgraph "test/results.csvraw" "csvraw-gcCpuSeconds-full" "gcCpuSeconds" cfg
-    bgraph "test/results.csvraw" "csvraw-cycles-full" "cycles" cfg
-    bgraph "test/results.csvraw" "csvraw-maxrss-full" "maxrss" cfg
+    -- raw csv format
+    graphCmp "test/results.csvraw" "csvraw-full"
+            cfg { sortBenchFields = (\\ ["name", "iters"]) }
+
+    -- Other types of comparisons
+    graphCmp "test/results.csvraw" "csvraw-delta"
+            cfg { fieldRanges = [("mean", -20000, 50000)]
+                , fieldGranularities = [("mean", GrainCount 7)]
+                , comparisonStyle = CompareAbsoluteDiff
+                , sortBenchFields = (`intersect` ["time"])
+                }
+    graphCmp "test/results.csvraw" "csvraw-percent"
+            cfg { comparisonStyle = ComparePercent
+                , sortBenchFields = (`intersect` ["time"])
+                }
+    graphCmp "test/results.csvraw" "csvraw-percent-delta"
+            cfg { comparisonStyle = ComparePercentDiff
+                , sortBenchFields = (`intersect` ["time"])
+                }

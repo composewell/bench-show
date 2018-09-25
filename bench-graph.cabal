@@ -8,8 +8,18 @@ description:
   you can compare groups of benchmarks side by side showing full measurements
   or a delta, or plot the performance regression of one version of your package
   against another version.
+  It can help you in answering questions like the following, visually or
+  textually, in just a few lines of code:
   .
-  See the README for comprehensive documentation.
+  * Across two benchmark runs, show all the operations that resulted in a
+    regression of more than 10%, so that you can quickly identify and fix
+    performance problems in your application.
+  * Across two (or more) packages, show all the operations where the
+    performance differs by more than 10%, so that you can critically analyze
+    the packages and choose the right one.
+  .
+  See the README and the "BenchGraph.Tutorial" module for comprehensive
+  documentation.
 
 homepage:            https://github.com/composewell/bench-graph
 bug-reports:         https://github.com/composewell/bench-graph/issues
@@ -35,10 +45,13 @@ extra-source-files:
     test/results.csvraw
     test/results-doc.csv
     test/results-doc-multi.csv
-    docs/mean-full.svg
-    docs/mean-grouped-delta.svg
-    docs/mean-grouped.svg
-    docs/mean-regression.svg
+    docs/full-Mean.svg
+    docs/grouped-Mean.svg
+    docs/grouped-delta-Mean.svg
+    docs/grouped-percent-delta-Mean.svg
+    docs/regression-Mean.svg
+    docs/regression-percent-Mean.svg
+    docs/regression-percent-descending-Mean.svg
 
 source-repository head
     type: git
@@ -48,6 +61,8 @@ library
     hs-source-dirs:   lib
     exposed-modules:  BenchGraph
                     , BenchGraph.Tutorial
+    other-modules:    BenchGraph.Common
+                    , BenchGraph.Graph
     default-language: Haskell2010
     default-extensions:
         OverloadedStrings
