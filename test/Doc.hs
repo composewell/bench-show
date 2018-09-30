@@ -3,11 +3,11 @@
 module Main where
 
 import Data.Ord (comparing)
-import Data.List (intersect, sortBy)
+import Data.List (sortBy)
 import Data.List.Split (splitOn)
 import BenchGraph
-       (defaultConfig, Config(..), ComparisonStyle(..),
-        SortField(..), graphCmp)
+       (defaultConfig, Config(..), Presentation(..), GroupStyle(..),
+        SortColumn(..), graph, report)
 
 main :: IO ()
 main = do
@@ -16,51 +16,94 @@ main = do
                 grp : rest -> Just (grp, concat rest)
                 _      -> Nothing
 
-    graphCmp "test/results-doc.csv" "docs/full" defaultConfig
-    graphCmp "test/results-doc.csv" "docs/grouped"
+    graph "test/results-doc.csv" "docs/full" defaultConfig
+    report "test/results-doc.csv" Nothing
+        defaultConfig { presentation = Fields }
+
+    graph "test/results-doc.csv" "docs/grouped"
+        defaultConfig
+        { classifyBenchmark = classifier }
+
+    report "test/results-doc.csv" Nothing
+        defaultConfig
+        { classifyBenchmark = classifier }
+
+    graph "test/results-doc.csv" "docs/grouped-percent"
         defaultConfig
         { classifyBenchmark = classifier
-        , sortBenchFields = (`intersect` ["Mean"])
+        , presentation = Groups Percent
         }
-    graphCmp "test/results-doc.csv" "docs/grouped-percent"
+
+    report "test/results-doc.csv" Nothing
         defaultConfig
         { classifyBenchmark = classifier
-        , comparisonStyle = ComparePercent
-        , sortBenchFields = (`intersect` ["Mean"])
+        , presentation = Groups Percent
         }
-    graphCmp "test/results-doc.csv" "docs/grouped-delta"
+
+    graph "test/results-doc.csv" "docs/grouped-delta"
         defaultConfig
         { classifyBenchmark = classifier
-        , comparisonStyle = CompareAbsoluteDiff
-        , sortBenchFields = (`intersect` ["Mean"])
+        , presentation = Groups Diff
         }
-    graphCmp "test/results-doc.csv" "docs/grouped-percent-delta"
+
+    report "test/results-doc.csv" Nothing
         defaultConfig
         { classifyBenchmark = classifier
-        , comparisonStyle = ComparePercentDiff
-        , sortBenchFields = (`intersect` ["Mean"])
+        , presentation = Groups Diff
         }
-    graphCmp "test/results-doc-multi.csv" "docs/regression"
+
+    graph "test/results-doc.csv" "docs/grouped-percent-delta"
         defaultConfig
         { classifyBenchmark = classifier
-        , comparisonStyle = CompareAbsoluteDiff
-        , sortBenchFields = (`intersect` ["Mean"])
+        , presentation = Groups PercentDiff
         }
-    graphCmp "test/results-doc-multi.csv" "docs/regression-percent"
+
+    report "test/results-doc.csv" Nothing
         defaultConfig
         { classifyBenchmark = classifier
-        , comparisonStyle = ComparePercentDiff
-        , sortBenchFields = (`intersect` ["Mean"])
+        , presentation = Groups PercentDiff
         }
-    graphCmp
+
+    graph "test/results-doc.csv" "docs/grouped-percent-delta-sorted"
+        defaultConfig
+        { classifyBenchmark = classifier
+        , presentation = Groups PercentDiff
+        , selectBenchmarks =
+              \f ->
+                  reverse $ map fst $
+                  sortBy (comparing snd) $ f $ ColumnIndex 1
+        }
+
+    report "test/results-doc.csv" Nothing
+        defaultConfig
+        { classifyBenchmark = classifier
+        , presentation = Groups PercentDiff
+        , selectBenchmarks =
+              \f ->
+                  reverse $ map fst $
+                  sortBy (comparing snd) $ f $ ColumnIndex 1
+        }
+
+    graph
         "test/results-doc-multi.csv"
         "docs/regression-percent-descending"
         defaultConfig
         { classifyBenchmark = classifier
-        , comparisonStyle = ComparePercentDiff
-        , sortBenchFields = (`intersect` ["Mean"])
-        , sortBenchmarks =
+        , presentation = Groups PercentDiff
+        , selectBenchmarks =
               \f ->
-                  map fst $
-                  sortBy (comparing snd) $ f $ Name "streamly(2)(-base %)"
+                  reverse $ map fst $
+                  sortBy (comparing snd) $ f $ ColumnIndex 1
+        }
+
+    report
+        "test/results-doc-multi.csv"
+        Nothing
+        defaultConfig
+        { classifyBenchmark = classifier
+        , presentation = Groups PercentDiff
+        , selectBenchmarks =
+              \f ->
+                  reverse $ map fst $
+                  sortBy (comparing snd) $ f $ ColumnIndex 1
         }

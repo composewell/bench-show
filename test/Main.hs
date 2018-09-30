@@ -2,13 +2,14 @@
 
 module Main where
 
+import Data.Function (on)
 import Data.List
 import Data.List.Split (splitOn)
 -- import Data.Maybe (catMaybes)
 -- import System.Process.Typed (readProcess_)
 import BenchGraph
-       (defaultConfig, Config(..), ComparisonStyle(..), Granularity(..),
-        SortField(..), graphCmp)
+       (defaultConfig, Config(..), Presentation(..), GroupStyle(..),
+        FieldTick(..), SortColumn(..), graph, report)
 
 -- import qualified Data.Text.Lazy as T
 -- import qualified Data.Text.Lazy.Encoding as T
@@ -82,31 +83,75 @@ main = do
                         let xs = reverse (splitOn "/" bm)
                         in Just (suffixVersion (xs !! 0), xs !! 1)
                     False -> Nothing
-            , sortBenchmarks = \g -> bsort $ map fst (g (Index 0))
-            , sortBenchGroups = \gs ->
-                let i = intersect (map suffixVersion packages) gs
-                in i ++ (gs \\ i)
+            , selectBenchmarks = \g -> bsort $ map fst (g (ColumnIndex 0))
+            , selectGroups = \gs ->
+                let gs' = map fst gs
+                    i = intersect (map suffixVersion packages) gs'
+                    new = i ++ (gs' \\ i)
+                in concat $ map (\x -> filter (\(y,_) -> y == x) gs) new
             }
 
     -- csv format
-    graphCmp "test/results.csv" "csv-full" cfg
+    graph "test/results.csv" "csv-full" cfg
 
     -- raw csv format
-    graphCmp "test/results.csvraw" "csvraw-full"
-            cfg { sortBenchFields = (\\ ["name", "iters"]) }
 
-    -- Other types of comparisons
-    graphCmp "test/results.csvraw" "csvraw-delta"
+    graph "test/results.csvraw" "csvraw-solo"
+            cfg { presentation = Solo }
+
+    -- multi-field graph
+    graph "test/results.csvraw" "csvraw-full-fields"
+            cfg { presentation = Fields }
+
+    -- multi-groupd graphs
+    graph "test/results.csvraw" "csvraw-full"
+            cfg { presentation = Groups Absolute }
+
+    graph "test/results.csvraw" "csvraw-delta"
             cfg { fieldRanges = [("mean", -20000, 50000)]
-                , fieldGranularities = [("mean", GrainCount 7)]
-                , comparisonStyle = CompareAbsoluteDiff
-                , sortBenchFields = (`intersect` ["time"])
+                , fieldTicks = [("mean", TickCount 7)]
+                , presentation = Groups Diff
+                , selectFields = (`intersect` ["time"])
                 }
-    graphCmp "test/results.csvraw" "csvraw-percent"
-            cfg { comparisonStyle = ComparePercent
-                , sortBenchFields = (`intersect` ["time"])
+    graph "test/results.csvraw" "csvraw-percent"
+            cfg { presentation = Groups Percent
+                , selectFields = (`intersect` ["time"])
                 }
-    graphCmp "test/results.csvraw" "csvraw-percent-delta"
-            cfg { comparisonStyle = ComparePercentDiff
-                , sortBenchFields = (`intersect` ["time"])
+    graph "test/results.csvraw" "csvraw-percent-delta"
+            cfg { presentation = Groups PercentDiff
+                , selectFields = (`intersect` ["time"])
+                }
+
+    -- Multi-field text reports
+    report "test/results.csv" Nothing
+            cfg { presentation = Fields }
+
+    report "test/results.csvraw" Nothing
+            cfg { presentation = Solo }
+
+    report "test/results.csvraw" Nothing
+            cfg { presentation = Fields }
+    report "test/results.csvraw" Nothing
+            cfg { presentation = Fields
+                , selectFields = drop 7
+                }
+
+    -- Multi-group text reports
+    report "test/results.csv" Nothing
+            cfg { presentation = Groups Absolute
+                , selectBenchmarks = \g ->
+                    map fst $ sortBy (compare `on` snd) (g (ColumnIndex 1))
+                }
+
+    report "test/results.csv" Nothing
+            cfg { presentation = Groups Percent
+                }
+
+    report "test/results.csv" Nothing
+            cfg { presentation = Groups PercentDiff
+                , selectBenchmarks = \g ->
+                    map fst $ sortBy (compare `on` snd) (g (ColumnIndex 1))
+                }
+    report "test/results.csv" Nothing
+            cfg { presentation = Groups Diff
                 }

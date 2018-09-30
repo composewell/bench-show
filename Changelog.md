@@ -2,30 +2,34 @@
 
 ### Breaking Changes
 
-* `CompareDelta` has been renamed to `CompareAbsoluteDiff`
+* `bgraph` has been removed and replaced by `graph`
+* The way output file is generated has changed. Now field name or group name
+  being plotted or both may be suffixed to the output file name automatically
 * Changes to `Config` record:
     * `chartTitle` field has been renamed to `title`.
     * The type of `outputDir` is now a `Maybe`.
-    * The signature of `sortBenchmarks` has changed. If your old definition of
-      `sortBenchmarks` was `f` it can be replaced with the following
-      definition:
-        `sortBenchmarks = \g -> f $ map fst (g (Index 0))`
+    * `comparisonStyle` has been replaced by `presentation`
+    * `ComparisonStyle` has been replaced by `Presentation`
+    * `sortBenchmarks` has been replaced by `selectBenchmarks`. The new
+      function can be defined as follows in terms of an older definition:
+        `selectBenchmarks = \g -> sortBenchmarks $ map fst (g (Index 0))`
+    * `sortBenchGroups` has been replaced by `selectGroups`
     * `setYScale` field has been broken down into two fields `fieldRanges` and
-      `fieldGranularities`. Now you also need to specify which fields' scale
+      `fieldTicks`. Now you also need to specify which fields' scale
       you want to set.
-* Now field name being plotted is suffixed to the output file name
-  automatically
 
 ### Enhancements
 
+* `report` has been added to generate textual reports
+* More ways to compare groups have been added, including percent and percent
+  difference
+* Now we can show multiple fields as columns in a single benchmark group report
+* Field units are now automatically selected based on the range of values
 * Additions to `Config` record type:
-  * `sortBenchFields` added to select the fields to be plotted and to change
+  * `selectFields` added to select the fields to be plotted and to change
     their presentation order.
-  * `sortBenchmarks` can now sort the results based on values corresponding to
+  * `selectBenchmarks` can now sort the results based on values corresponding to
     any field or benchmark group.
-* New comparison methods `ComparePercent` and `ComparePercentDiff` have been
-  added.
-* `bgraph` has been deprecated and replaced by `graphCmp`.
 
 ## 0.1.4
 
