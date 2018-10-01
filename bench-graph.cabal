@@ -1,5 +1,5 @@
 name:               bench-graph
-version:            0.1.4
+version:            0.2.0
 synopsis:           Generate reports and charts comparing benchmarks
 description:
   Generate text reports and graphical charts from the benchmark results
