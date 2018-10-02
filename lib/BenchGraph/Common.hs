@@ -29,7 +29,8 @@ module BenchGraph.Common
 
     , ReportColumn(..)
     , RawReport(..)
-    , getCmpReportUnit
+    , ReportType(..)
+    , diffString
     , makeTitle
     , prepareToReport
     , reportComparingGroups
@@ -70,6 +71,8 @@ filterSanity label old new = do
         \following items were added: " ++ show added
 
 -------------------------------------------------------------------------------
+
+data ReportType = TextReport | GraphicalChart
 
 -- | How to show the results for multiple benchmark groups presented in columns
 -- or bar chart clusters.
@@ -293,12 +296,12 @@ getTimeUnit k
     | k < 0      = getTimeUnit (-k)
     | k >= 1     = RelativeUnit "s" 1
     | k >= 1e-3  = RelativeUnit "ms" 1e-3
-    | k >= 1e-6  = RelativeUnit "us" 1e-6
+    | k >= 1e-6  = RelativeUnit "μs" 1e-6
     | otherwise  = RelativeUnit "ns" 1e-9
 
 getSpaceUnit :: Double -> RelativeUnit
 getSpaceUnit k
-    | k < 0             = getTimeUnit (-k)
+    | k < 0             = getSpaceUnit (-k)
     | k >= 2^(30 ::Int) = RelativeUnit "GiB" (2^(30 :: Int))
     | k >= 2^(20 ::Int) = RelativeUnit "MiB" (2^(20 :: Int))
     | k >= 2^(10 ::Int) = RelativeUnit "KiB" (2^(10 :: Int))
@@ -324,14 +327,6 @@ fieldUnits fieldName fieldMin style =
 -- Comparison
 -------------------------------------------------------------------------------
 
-comparisonStyleString :: GroupStyle -> Maybe String
-comparisonStyleString style =
-    case style of
-        Absolute       -> Nothing
-        Percent     -> Nothing
-        Diff        -> Just $ "Diff from baseline"
-        PercentDiff -> Just $ "Diff from baseline"
-
 absoluteDiff :: Num a => a -> a -> a
 absoluteDiff v1 v2 = v2 - v1
 
@@ -341,10 +336,11 @@ percentDiff v1 v2 = ((v2 - v1) * 100) / v1
 percent :: (Fractional a, Num a) => a -> a -> a
 percent v1 v2 = (v2 * 100) / v1
 
-cmpTransformColumns :: GroupStyle
+cmpTransformColumns :: ReportType
+                    -> GroupStyle
                     -> [[(String, Double)]]
                     -> [[(String, Double)]]
-cmpTransformColumns style columns =
+cmpTransformColumns rtype style columns =
     let cmpWith diff =
             let firstCol = head columns
                 colTransform col =
@@ -353,27 +349,32 @@ cmpTransformColumns style columns =
                     in zipWith mkDiff firstCol col
             in colTransform firstCol : map colTransform (tail columns)
     in case style of
+            Absolute    -> columns
             Diff        -> head columns : drop 1 (cmpWith absoluteDiff)
             Percent     -> cmpWith percent
-            PercentDiff -> map (\(n,_) -> (n,100)) (head columns)
-                            : drop 1 (cmpWith percentDiff)
-            Absolute       -> columns
+            PercentDiff ->
+                -- In a graphical chart we cannot show the absolute values in
+                -- the baseline column as the units won't match for the
+                -- baseline and the diff clusters.
+                let baseCol =
+                        case rtype of
+                            TextReport -> head columns
+                            GraphicalChart | length columns == 1 -> head columns
+                            GraphicalChart ->
+                                map (\(n,_) -> (n,100)) (head columns)
+                in baseCol : drop 1 (cmpWith percentDiff)
 
 transformColumnNames :: GroupStyle -> [ReportColumn] -> [ReportColumn]
-transformColumnNames style columns =
-    let cmpWith bXlate xlate =
-            let firstCol = head columns
-                colTransform xl col = col { colName = xl (colName col) }
-            in    colTransform bXlate firstCol
-                : map (colTransform xlate) (tail columns)
+transformColumnNames _ [] = []
+transformColumnNames style columns@(h:t) =
+    let withDiff = colSuffix baseName h : map (colSuffix diffName) t
     in case style of
-            Diff        -> cmpWith baseName diffName
-            PercentDiff -> cmpWith baseName diffName
-            Percent     -> cmpWith id id
-            Absolute       -> columns
+            Diff        | length columns > 1 -> withDiff
+            PercentDiff | length columns > 1 -> withDiff
+            _           -> columns
 
     where
-
+    colSuffix xl col = col { colName = xl (colName col) }
     baseName        = (++ "(base)")
     diffName        = (++ "(-base)")
 
@@ -723,9 +724,15 @@ getFieldTick :: String -> Config -> Maybe FieldTick
 getFieldTick fieldName Config{..} =
     fmap snd $ find (\x -> fst x == fieldName) fieldTicks
 
-prepareOutputFile :: FilePath -> String -> FilePath -> String -> IO FilePath
-prepareOutputFile dir ext file field = do
-    let path = dir </> (file ++ "-" ++ field ++ ext)
+getReportExtension :: ReportType -> String
+getReportExtension rtype =
+    case rtype of
+        TextReport -> ".txt"
+        GraphicalChart -> ".svg"
+
+prepareOutputFile :: FilePath -> ReportType -> FilePath -> String -> IO FilePath
+prepareOutputFile dir rtype file field = do
+    let path = dir </> (file ++ "-" ++ field ++ getReportExtension rtype)
     return path
 
 prepareToReport :: FilePath -> Config -> IO (CSV, [String])
@@ -798,38 +805,51 @@ getFieldMin cfg minval fieldName =
         Nothing -> minval
         Just (minr, _) -> minr
 
-prepareRawReportCmp :: Config
+prepareGroupsReport :: Config
                     -> GroupStyle
                     -> Maybe FilePath
+                    -> ReportType
                     -> Int
                     -> String
                     -> [GroupMatrix]
                     -> RawReport
-prepareRawReportCmp cfg style outfile runs field matrices =
+prepareGroupsReport cfg style outfile rtype runs field matrices =
     -- XXX Determine the unit based the whole range of values across all columns
     let sortValues :: [String] -> [(String, Double)] -> [Double]
         sortValues bmarks vals =
             map (\name -> fromMaybe (error "bug") (lookup name vals)) bmarks
 
         unsortedCols = map (extractColumn field) matrices
-        transformedCols = cmpTransformColumns style unsortedCols
+        transformedCols = cmpTransformColumns rtype style unsortedCols
         benchmarks = selectBenchmarksByField cfg matrices transformedCols
         sortedCols = map (sortValues benchmarks) transformedCols
 
-        fieldMinVal =
-            if style /= Diff
-            then minimum $ concat sortedCols
-            -- if we use diff vlaues here then the units will change to
-            -- potentially very small. If we use unsortedCols we may
-            -- potentially take columns which are filtered out into account. We
-            -- use the latter.
-            else minimum $ concat $ (map (map snd)) unsortedCols
-
-        unit@(RelativeUnit _ multiplier) =
-            fieldUnits field (getFieldMin cfg fieldMinVal field) style
+        mkColUnits :: [RelativeUnit]
+        mkColUnits =
+            let cols =
+                    if style == Diff || style == PercentDiff
+                    -- if we consider diff values as well here then the
+                    -- units will change to potentially very small.
+                    then [head sortedCols]
+                    else sortedCols
+                minVal = getFieldMin cfg (minimum $ concat cols) field
+            in case (rtype, style) of
+                -- In case of percentDiff in TextReport we use absolute
+                -- values in the baseline column, so the unit is different.
+                (TextReport, PercentDiff) ->
+                    let unit = fieldUnits field minVal Absolute
+                        punit = fieldUnits field 1 style -- % unit
+                    in unit : replicate (length matrices - 1) punit
+                (GraphicalChart, PercentDiff) | length matrices == 1 ->
+                    [fieldUnits field minVal Absolute]
+                _ -> let unit = fieldUnits field minVal style
+                     in replicate (length matrices) unit
 
         mkColValues :: [[Double]]
-        mkColValues = map (map (/multiplier)) sortedCols
+        mkColValues =
+            let applyUnit col (RelativeUnit _ multiplier) =
+                    map (/multiplier) col
+            in zipWith applyUnit sortedCols mkColUnits
 
         mkColNames :: [String]
         mkColNames =
@@ -838,10 +858,9 @@ prepareRawReportCmp cfg style outfile runs field matrices =
                             if runs > 1
                             then "(" ++ show (groupIndex x) ++ ")"
                             else ""
-                in map withSuffix matrices
-
-        mkColUnits :: [RelativeUnit]
-        mkColUnits = replicate (length matrices) unit
+                    applyUnit name (RelativeUnit label _) =
+                        name ++ inParens label
+                in zipWith applyUnit (map withSuffix matrices) mkColUnits
 
         columns = getZipList $ ReportColumn
                     <$> ZipList mkColNames
@@ -855,11 +874,9 @@ prepareRawReportCmp cfg style outfile runs field matrices =
             , reportColumns    = transformColumnNames style columns
             }
 
-showStatusMessage
-    :: Show a
-    => Config -> String -> Maybe RelativeUnit -> Maybe a -> IO ()
-showStatusMessage cfg field unit outfile =
-    let atitle = makeTitle field unit cfg
+showStatusMessage :: Show a => Config -> String -> Maybe a -> IO ()
+showStatusMessage cfg field outfile =
+    let atitle = makeTitle field (diffString (presentation cfg)) cfg
     in case outfile of
         Just path ->
             putStrLn $ "Creating chart "
@@ -868,36 +885,31 @@ showStatusMessage cfg field unit outfile =
                 ++ show path
         Nothing -> return ()
 
-getCmpReportUnit :: RawReport -> RelativeUnit
-getCmpReportUnit RawReport{..} =
-    colUnit $ head reportColumns
-
 reportComparingGroups
     :: GroupStyle
     -> FilePath
     -> Maybe FilePath
-    -> String
+    -> ReportType
     -> Int
     -> Config
     -> (RawReport -> Config -> IO ())
     -> [GroupMatrix]
     -> String
     -> IO ()
-reportComparingGroups style dir outputFile ext runs cfg@Config{..} mkReport matrices field = do
+reportComparingGroups style dir outputFile rtype runs cfg@Config{..} mkReport matrices field = do
     outfile <- case outputFile of
-        Just file -> fmap Just $ prepareOutputFile dir ext file field
+        Just file -> fmap Just $ prepareOutputFile dir rtype file field
         Nothing -> return Nothing
 
-    let rawReport = prepareRawReportCmp cfg style outfile runs field matrices
-        unit = getCmpReportUnit rawReport
-    showStatusMessage cfg field (Just unit) outfile
+    let rawReport = prepareGroupsReport cfg style outfile rtype runs field matrices
+    showStatusMessage cfg field outfile
     mkReport rawReport cfg
 
-prepareRawReport :: Config
+prepareFieldsReport :: Config
                  -> Maybe FilePath
                  -> GroupMatrix
                  -> RawReport
-prepareRawReport cfg outfile group =
+prepareFieldsReport cfg outfile group =
     let mkColNames :: [String]
         mkColNames = colNames $ groupMatrix group
 
@@ -941,40 +953,38 @@ prepareRawReport cfg outfile group =
 reportPerGroup
     :: FilePath
     -> Maybe FilePath
-    -> String
+    -> ReportType
     -> Config
     -> (RawReport -> Config -> IO ())
     -> GroupMatrix
     -> IO ()
-reportPerGroup dir outputFile ext cfg@Config{..} mkReport group = do
+reportPerGroup dir outputFile rtype cfg@Config{..} mkReport group = do
     outfile <- case outputFile of
-        Just file -> fmap Just $ prepareOutputFile dir ext file (groupName group)
+        Just file -> fmap Just $ prepareOutputFile dir rtype file (groupName group)
         Nothing -> return Nothing
 
-    let rawReport = prepareRawReport cfg outfile group
-    showStatusMessage cfg (groupName group) Nothing outfile
+    let rawReport = prepareFieldsReport cfg outfile group
+    showStatusMessage cfg (groupName group) outfile
     mkReport rawReport cfg
 
 -------------------------------------------------------------------------------
 -- Utility functions
 -------------------------------------------------------------------------------
 
+diffString :: Presentation -> Maybe String
+diffString style =
+    case style of
+        Groups Diff        -> Just $ "Diff from baseline"
+        Groups PercentDiff -> Just $ "Diff from baseline"
+        _ -> Nothing
+
 inParens :: String -> String
 inParens str = "(" ++ str ++ ")"
 
-makeTitle :: String -> Maybe RelativeUnit -> Config -> String
-makeTitle field unit Config{..} =
+makeTitle :: String -> Maybe String -> Config -> String
+makeTitle field diff Config{..} =
        fromMaybe "" title
     ++ inParens field
-    ++ case unit of
+    ++ case diff of
             Nothing -> ""
-            Just (RelativeUnit label _) ->
-                if presentation /= Fields
-                then inParens label
-                else ""
-    ++ case presentation of
-            Groups style ->
-                case comparisonStyleString style of
-                    Nothing -> ""
-                    Just str -> inParens str
-            _ -> ""
+            Just str -> inParens str

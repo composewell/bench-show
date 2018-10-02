@@ -75,7 +75,7 @@ import BenchGraph
 -- @
 --
 -- @
--- Benchmark     time(us) maxrss(MiB)
+-- Benchmark     time(μs) maxrss(MiB)
 -- ------------- -------- -----------
 -- vector/fold     641.62        2.75
 -- streamly/fold   639.96        2.75
@@ -119,12 +119,12 @@ import BenchGraph
 -- @
 --
 -- @
--- (time)(us)
--- Benchmark streamly vector
--- --------- -------- ------
--- fold        639.96 641.62
--- map         653.36 638.89
--- zip         644.33 651.42
+-- (time)
+-- Benchmark streamly(μs) vector(μs)
+-- --------- ------------ ----------
+-- fold            639.96     641.62
+-- map             653.36     638.89
+-- zip             644.33     651.42
 -- @
 --
 -- We can do the same graphically as well, just replace 'report' with 'graph'
@@ -148,12 +148,12 @@ import BenchGraph
 -- @
 --
 -- @
--- (time)(us)(Diff from baseline)
--- Benchmark streamly(base) vector(-base)
--- --------- -------------- -------------
--- fold              639.96         +1.66
--- map               653.36        -14.47
--- zip               644.33         +7.09
+-- (time)(Diff from baseline)
+-- Benchmark streamly(μs)(base) vector(μs)(-base)
+-- --------- ------------------ -----------------
+-- fold                  639.96             +1.66
+-- map                   653.36            -14.47
+-- zip                   644.33             +7.09
 -- @
 --
 -- In a chart, the second cluster plots the difference @streamly - vector@.
@@ -174,12 +174,12 @@ import BenchGraph
 -- @
 --
 -- @
--- (time)(%)(Diff from baseline)
--- Benchmark streamly(base) vector(-base)
--- --------- -------------- -------------
--- fold              100.00         +0.26
--- map               100.00         -2.22
--- zip               100.00         +1.10
+-- (time)(Diff from baseline)
+-- Benchmark streamly(μs)(base) vector(%)(-base)
+-- --------- ------------------ ----------------
+-- fold                  639.96            +0.26
+-- map                   653.36            -2.22
+-- zip                   644.33            +1.10
 -- @
 --
 -- Graphically:
@@ -203,12 +203,12 @@ import BenchGraph
 -- @
 --
 -- @
--- (time)(%)(Diff from baseline)
--- Benchmark streamly(base) vector(-base)
--- --------- -------------- -------------
--- zip               100.00         +1.10
--- fold              100.00         +0.26
--- map               100.00         -2.22
+-- (time)(Diff from baseline)
+-- Benchmark streamly(μs)(base) vector(%)(-base)
+-- --------- ------------------ ----------------
+-- zip                   644.33            +1.10
+-- fold                  639.96            +0.26
+-- map                   653.36            -2.22
 -- @
 --
 -- This tells us that zip is the relatively worst benchmark for vector compared
@@ -252,12 +252,12 @@ import BenchGraph
 -- @
 --
 -- @
--- (time)(%)(Diff from baseline)
--- Benchmark streamly(0)(base) streamly(1)(-base)
--- --------- ----------------- ------------------
--- zip                  100.00             +23.28
--- map                  100.00              +7.65
--- fold                 100.00             -15.63
+-- (time)(Diff from baseline)
+-- Benchmark streamly(0)(μs)(base) streamly(1)(%)(-base)
+-- --------- --------------------- ---------------------
+-- zip                      644.33                +23.28
+-- map                      653.36                 +7.65
+-- fold                     639.96                -15.63
 -- @
 --
 -- It tells us that in the second run the worst affected benchmark is zip

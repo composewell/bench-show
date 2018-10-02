@@ -28,12 +28,12 @@ import BenchGraph.Common
 -- XXX in comparative reports render lower than baseline in green and higher
 -- than baseline in red
 genGroupReport :: RawReport -> Config -> IO ()
-genGroupReport rpt@RawReport{..} cfg@Config{..} = do
-    let unit =
-            if presentation /= Fields
-            then Just $ getCmpReportUnit rpt
+genGroupReport RawReport{..} cfg@Config{..} = do
+    let diffStr =
+            if length reportColumns > 1
+            then diffString presentation
             else Nothing
-    putStrLn $ makeTitle reportIdentifier unit cfg
+    putStrLn $ makeTitle reportIdentifier diffStr cfg
     let benchcol  = "Benchmark" : reportRowIds
         groupcols =
             let firstCol : restCols = reportColumns
@@ -96,20 +96,20 @@ genGroupReport rpt@RawReport{..} cfg@Config{..} = do
 report :: FilePath -> Maybe FilePath -> Config -> IO ()
 report inputFile outputFile cfg@Config{..} = do
     let dir = fromMaybe "." outputDir
-        ext = ".txt"
     (csvlines, fields) <- prepareToReport inputFile cfg
     (runs, matrices) <- prepareGroupMatrices cfg csvlines fields
     case presentation of
         Groups style ->
             forM_ fields $
-                reportComparingGroups style dir outputFile ext runs
+                reportComparingGroups style dir outputFile TextReport runs
                                cfg genGroupReport matrices
         Fields -> do
             forM_ matrices $
-                reportPerGroup dir outputFile ext cfg genGroupReport
+                reportPerGroup dir outputFile TextReport cfg genGroupReport
         Solo ->
             let funcs = map
                     (\mx -> reportComparingGroups Absolute dir
-                        (fmap (++ "-" ++ groupName mx) outputFile) ext runs
-                                   cfg genGroupReport [mx]) matrices
+                        (fmap (++ "-" ++ groupName mx) outputFile)
+                        TextReport runs cfg genGroupReport [mx])
+                    matrices
              in sequence_ $ funcs <*> fields

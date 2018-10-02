@@ -69,16 +69,24 @@ genGroupGraph RawReport{..} cfg@Config{..} = do
     let outputFile  = fromMaybe undefined reportOutputFile
         fieldRange  = getFieldRange reportIdentifier cfg
         granularity = getFieldTick reportIdentifier cfg
-        unit@(RelativeUnit unitLabel multiplier) = colUnit (head reportColumns)
-        atitle      = makeTitle reportIdentifier (Just unit) cfg
+        -- XXX assert that the unit for all columns is the same
+        RelativeUnit ulabel multiplier = colUnit (head reportColumns)
+        replaceMu 'μ' = 'u'
+        replaceMu x = x
+        unitLabel = map replaceMu ulabel
         columns = transformColumns reportColumns
+        diffStr =
+            if length reportColumns > 1
+            then diffString presentation
+            else Nothing
+        atitle = makeTitle reportIdentifier diffStr cfg
 
     toFile def outputFile $ do
         layout_title .= atitle
         layout_title_style . font_size .= 25
 
         layout_x_axis . laxis_generate .=
-            autoIndexAxis (map colName columns)
+            autoIndexAxis (map (map replaceMu . colName) columns)
         layout_x_axis . laxis_style . axis_label_style . font_size .= 16
         layout_y_axis . laxis_style . axis_label_style . font_size .= 14
 
@@ -132,20 +140,22 @@ genGroupGraph RawReport{..} cfg@Config{..} = do
 graph :: FilePath -> FilePath -> Config -> IO ()
 graph inputFile outputFile cfg@Config{..} = do
     let dir = fromMaybe "." outputDir
-        ext = ".svg"
     (csvlines, fields) <- prepareToReport inputFile cfg
     (runs, matrices) <- prepareGroupMatrices cfg csvlines fields
     case presentation of
         Groups style ->
             forM_ fields $
-                reportComparingGroups style dir (Just outputFile) ext runs
-                                      cfg genGroupGraph matrices
+                reportComparingGroups style dir (Just outputFile)
+                                      GraphicalChart runs cfg
+                                      genGroupGraph matrices
         Fields -> do
             forM_ matrices $
-                reportPerGroup dir (Just outputFile) ext cfg genGroupGraph
+                reportPerGroup dir (Just outputFile) GraphicalChart
+                               cfg genGroupGraph
         Solo ->
             let funcs = map
                     (\mx -> reportComparingGroups Absolute dir
-                        (Just $ outputFile ++ "-" ++ groupName mx) ext
-                            runs cfg genGroupGraph [mx]) matrices
+                        (Just $ outputFile ++ "-" ++ groupName mx)
+                        GraphicalChart runs cfg genGroupGraph [mx])
+                    matrices
              in sequence_ $ funcs <*> fields
