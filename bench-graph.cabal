@@ -62,7 +62,8 @@ library
     hs-source-dirs:   lib
     exposed-modules:  BenchGraph
                     , BenchGraph.Tutorial
-    other-modules:    BenchGraph.Common
+    other-modules:    BenchGraph.Analysis
+                    , BenchGraph.Common
                     , BenchGraph.Graph
                     , BenchGraph.Report
     default-language: Haskell2010
@@ -76,10 +77,13 @@ library
         , Chart-diagrams    >= 1.6     && < 2
         , csv               >= 0.1     && < 0.2
         , filepath          >= 1.3     && < 1.5
+        , mwc-random        >= 0.13    && < 0.15
         , directory         >= 1.2     && < 1.4
         , transformers      >= 0.4     && < 0.6
         , ansi-wl-pprint    >= 0.6     && < 0.7
         , split             >= 0.2     && < 0.3
+        , statistics        >= 0.14    && < 0.16
+        , vector            >= 0.10    && < 0.13
 
 test-suite test
     type: exitcode-stdio-1.0

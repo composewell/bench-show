@@ -42,16 +42,21 @@ import Control.Arrow (second)
 import Control.Exception (assert)
 import Control.Monad (when, unless)
 import Data.Char (toLower)
+import Data.Foldable (foldl')
 import Data.Function ((&), on)
 import Data.List (transpose, groupBy, (\\), find, foldl1', sortBy, elemIndex)
 import Data.List.Split (linesBy)
 import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Ord (comparing)
 import Debug.Trace (trace)
+import Statistics.Types (Estimate(..))
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>))
+import System.Random.MWC (createSystemRandom)
 import Text.CSV (CSV, parseCSVFromFile)
 import Text.Read (readMaybe)
+
+import BenchGraph.Analysis
 
 -------------------------------------------------------------------------------
 -- Utilities
@@ -273,14 +278,6 @@ isTimeField fieldName = map toLower fieldName `elem` timeFields
 isAllocationField :: String -> Bool
 isAllocationField fieldName = map toLower fieldName `elem` allocFields
 
--- By default the fields are considered "scaled" fields that is
--- they scale by iterations. However in case of maxrss field it is
--- a max value across the experiment and does not scale by
--- iterations, in this case we just need to take a mean or max
--- without scaling.
-isMaxField :: String -> Bool
-isMaxField fieldName = map toLower fieldName == "maxrss"
-
 -------------------------------------------------------------------------------
 -- Units
 -------------------------------------------------------------------------------
@@ -382,7 +379,7 @@ transformColumnNames style columns@(h:t) =
 -- XXX store as a rowMap, each row having a colMap?
 data BenchmarkMatrix = BenchmarkMatrix
     { colNames :: [String]
-    , rowValues :: [(String, [Double])]
+    , rowValues :: [(String, [Double])] -- (Benchmark, columns)
     } deriving Show
 
 -- Represents the data for a single benchmark run
@@ -660,18 +657,17 @@ readWithError lno typ (fname, fval) =
 --
 -- If the first column is iteration then fold all iterations and remove the
 -- iteration column.
-foldIterations :: [String] -> NumberedLines -> BenchmarkMatrix
-foldIterations header csvlines =
+readIterations :: [String] -> NumberedLines -> BenchmarkIterMatrix
+readIterations header csvlines =
     let (header', csvlines') = addIterField header csvlines
         tuples =
             map (parseNumericFields header') csvlines'
             -- we now have a list of triples [(iter, name, (fieldName, [Double])]
           & groupBy successiveIters
-          & map (foldl1' addIters)
-          & map getMeanOrMax
-    in BenchmarkMatrix
-        { colNames = drop 2 header'
-        , rowValues = tuples
+          & map (foldl' addIters ("",[]))
+    in BenchmarkIterMatrix
+        { iterColNames = drop 2 header'
+        , iterRowValues = tuples
         }
 
     where
@@ -695,23 +691,44 @@ foldIterations header csvlines =
 
     successiveIters (i1,name1,_) (i2,name2,_) = name2 == name1 && i2 > i1
 
-    addField :: (Num a, Ord a) => (String, a) -> (String, a) -> (String, a)
-    addField (name1, val1) (name2, val2) =
-        assert (name1 == name2) $
-            if isMaxField name1
-            then (name1, max val1 val2)
-            else (name1, val1 + val2)
+    addIters (_,siters) (iter,name,vals) =
+        (name, (iter, map snd vals) : siters)
 
-    addIters (siter,sname,svals) (iter,name,vals) =
-        assert (sname == name) $
-            (siter + iter, name, zipWith addField svals vals)
+foldBenchmarkIters :: [String] -> [(Int, [Double])] -> [Double]
+foldBenchmarkIters cols iters =
+    rescaleIteration cols $ foldl1' addIters iters
 
-    getMeanOrMax (iter,name,vals) =
-        let meanOrMax (fname, val) =
-                if isMaxField fname
-                then val
-                else val / fromIntegral iter
-        in (name,map meanOrMax vals)
+    where
+
+    addField :: (Num a, Ord a) => String -> a -> a -> a
+    addField name = if isMaxField name then max else (+)
+
+    addFields = map addField cols
+
+    addIters (siter,svals) (iter,vals) =
+            (siter + iter, getZipList $
+                ZipList addFields <*> ZipList svals <*> ZipList vals)
+
+foldBenchmark :: BenchmarkIterMatrix -> IO BenchmarkMatrix
+foldBenchmark BenchmarkIterMatrix{..} = do
+    randGen <- createSystemRandom
+    rows <- mapM (foldIters randGen) iterRowValues
+    return $ BenchmarkMatrix
+        { colNames = iterColNames
+        , rowValues = rows
+        }
+
+    where
+
+    foldIters randGen (name, vals) =
+        if length vals >= 3
+        then do
+            vals' <- analyzeBenchmark randGen iterColNames vals
+            let vs = map (estPoint . analyzedMean) vals'
+            return (name, vs)
+        else do
+            let vals' = foldBenchmarkIters iterColNames vals
+            return (name, vals')
 
 getFieldRange :: String -> Config -> Maybe (Double, Double)
 getFieldRange fieldName Config{..} =
@@ -768,13 +785,15 @@ filterGroupBenchmarks matrices = return $ map filterMatrix matrices
         in matrix {groupMatrix = m {rowValues = vals}}
 
 prepareGroupMatrices :: Config -> CSV -> [String] -> IO (Int, [GroupMatrix])
-prepareGroupMatrices cfg@Config{..} csvlines fields =
+prepareGroupMatrices cfg@Config{..} csvlines fields = do
     let (hdr, runs) =
               sanityCheckCSV csvlines
             & filterFields fields
             & splitRuns
-    in map (foldIterations hdr) runs
-        & zip [0..]
+    xs <- sequence $ map (readIterations hdr) runs
+            & map foldBenchmark
+
+    zip [0..] xs
         & map (splitGroup classifyBenchmark)
         & concat
         & sortGroups cfg
