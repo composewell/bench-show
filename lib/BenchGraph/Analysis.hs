@@ -21,19 +21,17 @@ module BenchGraph.Analysis
     , OutlierVariance(..)
     , countOutliers
     , AnalyzedField(..)
+    , BenchmarkMatrix(..)
     , BenchmarkIterMatrix(..)
-    , BenchmarkAnalyzedMatrix(..)
-    , analyzeIterMatrix
-    , analyzeBenchmark
+    , foldBenchmark
     , isMaxField
-    , rescaleIteration
     ) where
 
 import Control.Applicative
 import Data.Char (toLower)
 import Data.Data (Data, Typeable)
 import Data.Int (Int64)
-import Data.List (transpose)
+import Data.List (foldl1', transpose)
 import Data.Traversable
 import GHC.Generics (Generic)
 import Statistics.Function (sort)
@@ -261,24 +259,51 @@ analyzeBenchmark randGen cols iterValues = do
         <*> ZipList outliers
         <*> ZipList kdes
 
+foldBenchmarkIters :: [String] -> [(Int, [Double])] -> [Double]
+foldBenchmarkIters cols iters =
+    rescaleIteration cols $ foldl1' addIters iters
+
+    where
+
+    addField :: (Num a, Ord a) => String -> a -> a -> a
+    addField name = if isMaxField name then max else (+)
+
+    addFields = map addField cols
+
+    addIters (siter,svals) (iter,vals) =
+            (siter + iter, getZipList $
+                ZipList addFields <*> ZipList svals <*> ZipList vals)
+
 data BenchmarkIterMatrix = BenchmarkIterMatrix
     { iterColNames  :: ![String]
     -- (Benchmark, [(iters, columns)])
     , iterRowValues :: ![(String, [(Int, [Double])])]
     } deriving Show
 
-data BenchmarkAnalyzedMatrix = BenchmarkAnalyzedMatrix
-    { anColNames  :: ![String]
-    -- (Benchmark, [(iters, columns)])
-    , anRowValues :: ![(String, [AnalyzedField])]
+-- Stored by rows
+-- XXX store as a rowMap, each row having a colMap?
+data BenchmarkMatrix = BenchmarkMatrix
+    { colNames :: [String]
+    , rowValues :: [(String, [Double])] -- (Benchmark, columns)
     } deriving Show
 
-analyzeIterMatrix :: BenchmarkIterMatrix -> IO BenchmarkAnalyzedMatrix
-analyzeIterMatrix BenchmarkIterMatrix {..} = do
+foldBenchmark :: BenchmarkIterMatrix -> IO BenchmarkMatrix
+foldBenchmark BenchmarkIterMatrix{..} = do
     randGen <- createSystemRandom
-    let analyzeIterVals = analyzeBenchmark randGen iterColNames
-    rows <- mapM (\(s,xs) -> analyzeIterVals xs >>= return . (s,)) iterRowValues
-    return $ BenchmarkAnalyzedMatrix
-        { anColNames = iterColNames
-        , anRowValues = rows
+    rows <- mapM (foldIters randGen) iterRowValues
+    return $ BenchmarkMatrix
+        { colNames = iterColNames
+        , rowValues = rows
         }
+
+    where
+
+    foldIters randGen (name, vals) =
+        if length vals >= 3
+        then do
+            vals' <- analyzeBenchmark randGen iterColNames vals
+            let vs = map (estPoint . analyzedMean) vals'
+            return (name, vs)
+        else do
+            let vals' = foldBenchmarkIters iterColNames vals
+            return (name, vals')
