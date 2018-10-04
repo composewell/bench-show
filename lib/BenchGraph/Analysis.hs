@@ -31,7 +31,7 @@ import Control.Applicative
 import Data.Char (toLower)
 import Data.Data (Data, Typeable)
 import Data.Int (Int64)
-import Data.List (foldl1', transpose)
+import Data.List (transpose)
 import Data.Traversable
 import GHC.Generics (Generic)
 import Statistics.Function (sort)
@@ -39,6 +39,7 @@ import Statistics.Quantile (weightedAvg)
 import Statistics.Regression (bootstrapRegress, olsRegress)
 import Statistics.Resampling (Estimator(..), resample)
 import Statistics.Resampling.Bootstrap (bootstrapBCA)
+import Statistics.Sample (mean, stdDev)
 import Statistics.Sample.KernelDensity (kde)
 import Statistics.Types (Sample, Estimate(..), ConfInt(..), cl95, CL)
 import System.Random.MWC (GenIO, createSystemRandom)
@@ -152,6 +153,9 @@ countOutliers (Outliers _ a b c d) = a + b + c + d
 -- Linear regression
 -------------------------------------------------------------------------------
 
+useRegression :: Bool
+useRegression = False
+
 resampleCount :: Int
 resampleCount = 1000
 
@@ -216,9 +220,6 @@ rescaleIteration fnames (iter, vals) =
 
     foldFields = map getMeanOrMax fnames
 
-useRegression :: Bool
-useRegression = False
-
 data AnalyzedField = AnalyzedField
     { analyzedMean       :: Double
     , analyzedStdDev     :: Double
@@ -228,21 +229,6 @@ data AnalyzedField = AnalyzedField
     , analyzedRegCoeff   :: Maybe (Estimate ConfInt Double)
     , analyzedRegRSq     :: Maybe (Estimate ConfInt Double)
     } deriving Show
-
-foldBenchmarkIters :: [String] -> [(Int, [Double])] -> [Double]
-foldBenchmarkIters cols iters =
-    rescaleIteration cols $ foldl1' addIters iters
-
-    where
-
-    addField :: (Num a, Ord a) => String -> a -> a -> a
-    addField name = if isMaxField name then max else (+)
-
-    addFields = map addField cols
-
-    addIters (siter,svals) (iter,vals) =
-            (siter + iter, getZipList $
-                ZipList addFields <*> ZipList svals <*> ZipList vals)
 
 -- | Perform an analysis of a measurement.
 analyzeBenchmark :: GenIO
@@ -266,10 +252,10 @@ analyzeBenchmark randGen cols samples = do
             (ms, ds) <- fmap unzip $ estimateMeanAndStdDev randGen vectors
             return (map estPoint ms, map estPoint ds, map Just cs, map Just rs)
         else do
-            let ms = foldBenchmarkIters cols samples
-            let n = length cols
-            -- XXX use std devs
-            return (ms, ms, replicate n Nothing, replicate n Nothing)
+            let ms = map mean vectors
+                ds = map stdDev vectors
+                n = length cols
+            return (ms, ds, replicate n Nothing, replicate n Nothing)
 
     let ovs = getZipList
                 $ outlierVariance
