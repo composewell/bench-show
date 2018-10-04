@@ -116,10 +116,9 @@ classifyOutliers sa = U.foldl' ((. outlier) . addOutliers) outliersEmpty ssa
 -- | Compute the extent to which outliers in the sample data affect
 -- the sample mean and standard deviation.
 outlierVariance
-  :: Estimate ConfInt Double -- ^ Bootstrap estimate of sample mean.
-  -> Estimate ConfInt Double -- ^ Bootstrap estimate of sample
-                                 --   standard deviation.
-  -> Double                      -- ^ Number of original iterations.
+  :: Double -- ^ mean
+  -> Double -- ^ standard deviation.
+  -> Double -- ^ Number of original iterations.
   -> OutlierVariance
 outlierVariance µ σ a = OutlierVariance effect desc varOutMin
   where
@@ -129,8 +128,8 @@ outlierVariance µ σ a = OutlierVariance effect desc varOutMin
                      | otherwise        = (Severe,     "severe")
     varOutMin = (minBy varOut 1 (minBy cMax 0 µgMin)) / σb2
     varOut c  = (ac / a) * (σb2 - ac * σg2) where ac = a - c
-    σb        = estPoint σ
-    µa        = estPoint µ / a
+    σb        = σ
+    µa        = µ / a
     µgMin     = µa / 2
     σg        = min (µgMin / 4) (σb / sqrt a)
     σg2       = σg * σg
@@ -217,47 +216,18 @@ rescaleIteration fnames (iter, vals) =
 
     foldFields = map getMeanOrMax fnames
 
+useRegression :: Bool
+useRegression = False
+
 data AnalyzedField = AnalyzedField
-    { analyzedMean       :: Estimate ConfInt Double
-    , analyzedStdDev     :: Estimate ConfInt Double
-    , analyzedRegCoeff   :: Estimate ConfInt Double
-    , analyzedRegRSq     :: Estimate ConfInt Double
+    { analyzedMean       :: Double
+    , analyzedStdDev     :: Double
     , analyzedOutlierVar :: !OutlierVariance
     , analyzedOutliers   :: !Outliers
     , analyzedKDE        :: !(U.Vector Double, U.Vector Double)
+    , analyzedRegCoeff   :: Maybe (Estimate ConfInt Double)
+    , analyzedRegRSq     :: Maybe (Estimate ConfInt Double)
     } deriving Show
-
--- XXX do not regress a max field
---
--- | Perform an analysis of a measurement.
-analyzeBenchmark :: GenIO
-                 -> [String]
-                 -> [(Int, [Double])]
-                 -> IO [AnalyzedField]
-analyzeBenchmark randGen cols iterValues = do
-    let sampleCnt = length iterValues
-        vectors = map U.fromList
-            $ transpose
-            $ map (rescaleIteration cols) iterValues
-
-    (coeffs, r2s) <- fmap unzip $ regress randGen iterValues
-    (means, devs) <- fmap unzip $ estimateMeanAndStdDev randGen vectors
-    let ovs = getZipList
-                $ outlierVariance
-                    <$> ZipList means
-                    <*> ZipList devs
-                    <*> pure (fromIntegral sampleCnt)
-        outliers = getZipList $ classifyOutliers <$> ZipList vectors
-        kdes = map (kde 128) vectors
-
-    return $ getZipList $ AnalyzedField
-        <$> ZipList means
-        <*> ZipList devs
-        <*> ZipList coeffs
-        <*> ZipList r2s
-        <*> ZipList ovs
-        <*> ZipList outliers
-        <*> ZipList kdes
 
 foldBenchmarkIters :: [String] -> [(Int, [Double])] -> [Double]
 foldBenchmarkIters cols iters =
@@ -273,6 +243,50 @@ foldBenchmarkIters cols iters =
     addIters (siter,svals) (iter,vals) =
             (siter + iter, getZipList $
                 ZipList addFields <*> ZipList svals <*> ZipList vals)
+
+-- | Perform an analysis of a measurement.
+analyzeBenchmark :: GenIO
+                 -> [String]
+                 -> [(Int, [Double])]
+                 -> IO [AnalyzedField]
+analyzeBenchmark randGen cols samples = do
+    let sampleCnt = length samples
+        vectors = map U.fromList
+            $ transpose
+            $ map (rescaleIteration cols) samples
+
+    (means, devs, coeffs, r2s) <-
+        -- samples lower than 3 produce negative values for time
+        -- but anyway this is for experimentation so we provide unconditional
+        -- use when enabled.
+        if useRegression -- && length samples >= 3
+        then do
+            -- XXX do not regress a max field
+            (cs, rs) <- fmap unzip $ regress randGen samples
+            (ms, ds) <- fmap unzip $ estimateMeanAndStdDev randGen vectors
+            return (map estPoint ms, map estPoint ds, map Just cs, map Just rs)
+        else do
+            let ms = foldBenchmarkIters cols samples
+            let n = length cols
+            -- XXX use std devs
+            return (ms, ms, replicate n Nothing, replicate n Nothing)
+
+    let ovs = getZipList
+                $ outlierVariance
+                    <$> ZipList means
+                    <*> ZipList devs
+                    <*> pure (fromIntegral sampleCnt)
+        outliers = getZipList $ classifyOutliers <$> ZipList vectors
+        kdes = map (kde 128) vectors
+
+    return $ getZipList $ AnalyzedField
+        <$> ZipList means
+        <*> ZipList devs
+        <*> ZipList ovs
+        <*> ZipList outliers
+        <*> ZipList kdes
+        <*> ZipList coeffs
+        <*> ZipList r2s
 
 data BenchmarkIterMatrix = BenchmarkIterMatrix
     { iterColNames  :: ![String]
@@ -298,12 +312,6 @@ foldBenchmark BenchmarkIterMatrix{..} = do
 
     where
 
-    foldIters randGen (name, vals) =
-        if length vals >= 3
-        then do
+    foldIters randGen (name, vals) = do
             vals' <- analyzeBenchmark randGen iterColNames vals
-            let vs = map (estPoint . analyzedMean) vals'
-            return (name, vs)
-        else do
-            let vals' = foldBenchmarkIters iterColNames vals
-            return (name, vals')
+            return (name, map analyzedMean vals')
