@@ -49,6 +49,7 @@ import Data.List.Split (linesBy)
 import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Ord (comparing)
 import Debug.Trace (trace)
+import Statistics.Types (Estimate(..), ConfInt(..))
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>))
 import Text.CSV (CSV, parseCSVFromFile)
@@ -444,7 +445,7 @@ sortGroups Config{..} matrices = do
 -- sort the benchmarks
 -------------------------------------------------------------------------------
 
-extractColumn :: String -> GroupMatrix -> [(String, Double)]
+extractColumn :: String -> GroupMatrix -> [(String, AnalyzedField)]
 extractColumn field GroupMatrix{..} =
     let idx = elemIndex field (colNames groupMatrix)
         vals = case idx of
@@ -453,6 +454,10 @@ extractColumn field GroupMatrix{..} =
                 ++ "] does not exist in group ["
                 ++ groupName ++ "] and run id [" ++ show groupIndex ++ "]"
     in zip (map fst groupBenches) vals
+
+extractColumnMean :: String -> GroupMatrix -> [(String, Double)]
+extractColumnMean field matrix =
+    map (second getAnalyzedValue) $ extractColumn field matrix
 
 benchmarkCompareSanity :: [String] -> GroupMatrix -> [String]
 benchmarkCompareSanity benchmarks GroupMatrix{..} = do
@@ -560,7 +565,7 @@ selectBenchmarksByGroup Config{..} grp@GroupMatrix{..} =
                         ++ "] not found in group ["
                         ++ groupName ++ "]. Available fields are: "
                         ++ show fields
-            True -> extractColumn name grp
+            True -> extractColumnMean name grp
 
     extractColumnByFieldIndex idx =
         let fields = colNames groupMatrix
@@ -568,7 +573,7 @@ selectBenchmarksByGroup Config{..} grp@GroupMatrix{..} =
         in if idx >= len
            then error $ "Column index must be in the range [0-"
                 ++ show (len - 1) ++ "]"
-           else extractColumn (fields !! idx) grp
+           else extractColumnMean (fields !! idx) grp
 
 type NumberedLines = [(Int, [String])]
 
@@ -746,6 +751,7 @@ prepareGroupMatrices cfg@Config{..} csvlines fields = do
             & filterFields fields
             & splitRuns
     xs <- sequence $ map (readIterations hdr) runs
+            & map filterSamples
             & map foldBenchmark
 
     zip [0..] xs
@@ -771,6 +777,7 @@ data RawReport = RawReport
     , reportIdentifier :: String
     , reportRowIds     :: [String]
     , reportColumns    :: [ReportColumn]
+    , reportAnalyzed   :: [[AnalyzedField]]
     } deriving Show
 
 getFieldMin :: Config -> Double -> String -> Double
@@ -778,6 +785,32 @@ getFieldMin cfg minval fieldName =
     case getFieldRange fieldName cfg of
         Nothing -> minval
         Just (minr, _) -> minr
+
+scaleAnalyzedField :: RelativeUnit -> AnalyzedField -> AnalyzedField
+scaleAnalyzedField (RelativeUnit _ mult) AnalyzedField{..} =
+    AnalyzedField
+    { analyzedMean = analyzedMean / mult
+    , analyzedStdDev = analyzedStdDev / mult
+    , analyzedOutlierVar = analyzedOutlierVar
+    -- XXX scale
+    , analyzedOutliers = analyzedOutliers
+    -- XXX scale
+    , analyzedKDE = analyzedKDE
+    , analyzedRegCoeff = case
+        analyzedRegCoeff of
+            Nothing -> Nothing
+            Just Estimate{..} ->
+                let ConfInt{..} = estError
+                in Just $ Estimate
+                    { estPoint = estPoint / mult
+                    , estError = ConfInt
+                        { confIntLDX = confIntLDX / mult
+                        , confIntUDX = confIntUDX / mult
+                        , confIntCL = confIntCL
+                        }
+                    }
+    , analyzedRegRSq = analyzedRegRSq
+    }
 
 prepareGroupsReport :: Config
                     -> GroupStyle
@@ -789,14 +822,16 @@ prepareGroupsReport :: Config
                     -> RawReport
 prepareGroupsReport cfg style outfile rtype runs field matrices =
     -- XXX Determine the unit based the whole range of values across all columns
-    let sortValues :: [String] -> [(String, Double)] -> [Double]
+    let sortValues :: [String] -> [(String, a)] -> [a]
         sortValues bmarks vals =
             map (\name -> fromMaybe (error "bug") (lookup name vals)) bmarks
 
         unsortedCols = map (extractColumn field) matrices
-        transformedCols = cmpTransformColumns rtype style unsortedCols
+        transformedCols = cmpTransformColumns rtype style
+            $ map (map (second getAnalyzedValue)) unsortedCols
         benchmarks = selectBenchmarksByField cfg matrices transformedCols
         sortedCols = map (sortValues benchmarks) transformedCols
+        origSortedCols = map (sortValues benchmarks) unsortedCols
 
         mkColUnits :: [RelativeUnit]
         mkColUnits =
@@ -846,6 +881,8 @@ prepareGroupsReport cfg style outfile rtype runs field matrices =
             , reportIdentifier = field
             , reportRowIds     = benchmarks
             , reportColumns    = transformColumnNames style columns
+            , reportAnalyzed   = zipWith (\x y -> map (scaleAnalyzedField x) y)
+                                         mkColUnits origSortedCols
             }
 
 showStatusMessage :: Show a => Config -> String -> Maybe a -> IO ()
@@ -894,7 +931,8 @@ prepareFieldsReport cfg outfile group =
                 lookup name (rowValues $ groupMatrix group)
 
         sortedValues = map getBenchValues benchmarks
-        minValues = map minimum (transpose sortedValues)
+        minValues = map (minimum . map getAnalyzedValue)
+                        (transpose sortedValues)
 
         mkColUnits :: [RelativeUnit]
         mkColUnits = map (\(x, v) -> getUnitByFieldName x (getFieldMin cfg v x))
@@ -902,9 +940,9 @@ prepareFieldsReport cfg outfile group =
 
         mkColValues :: [[Double]]
         mkColValues =
-                map (\ys -> zipWith (\(RelativeUnit _ multiplier) x -> x/multiplier)
-                                mkColUnits ys)
-                        sortedValues
+            let scale (RelativeUnit _ multiplier) x = x / multiplier
+            in  map (\ys -> zipWith scale mkColUnits ys)
+                    (map (map getAnalyzedValue) sortedValues)
 
         addUnitLabel name (RelativeUnit label _) =
             if label /= []
@@ -922,6 +960,7 @@ prepareFieldsReport cfg outfile group =
             , reportIdentifier = groupName group
             , reportRowIds     = benchmarks
             , reportColumns    = columns
+            , reportAnalyzed   = sortedValues
             }
 
 reportPerGroup

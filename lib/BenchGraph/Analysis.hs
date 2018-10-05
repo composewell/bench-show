@@ -21,9 +21,11 @@ module BenchGraph.Analysis
     , OutlierVariance(..)
     , countOutliers
     , AnalyzedField(..)
+    , getAnalyzedValue
     , BenchmarkMatrix(..)
     , BenchmarkIterMatrix(..)
     , foldBenchmark
+    , filterSamples
     , isMaxField
     ) where
 
@@ -31,7 +33,8 @@ import Control.Applicative
 import Data.Char (toLower)
 import Data.Data (Data, Typeable)
 import Data.Int (Int64)
-import Data.List (transpose)
+import Data.List (sortBy, transpose)
+import Data.Ord (comparing)
 import Data.Traversable
 import GHC.Generics (Generic)
 import Statistics.Function (sort)
@@ -98,13 +101,13 @@ data OutlierVariance = OutlierVariance {
 -- | Classify outliers in a data set, using the boxplot technique.
 classifyOutliers :: Sample -> Outliers
 classifyOutliers sa = U.foldl' ((. outlier) . addOutliers) outliersEmpty ssa
-    where outlier e = Outliers {
-                        samplesSeen = 1
-                      , lowSevere = if e <= loS && e < hiM then 1 else 0
-                      , lowMild = if e > loS && e <= loM then 1 else 0
-                      , highMild = if e >= hiM && e < hiS then 1 else 0
-                      , highSevere = if e >= hiS && e > loM then 1 else 0
-                      }
+    where outlier e = Outliers
+                { samplesSeen = 1
+                , lowSevere = if e <= loS && e < hiM then 1 else 0
+                , lowMild = if e > loS && e <= loM then 1 else 0
+                , highMild = if e >= hiM && e < hiS then 1 else 0
+                , highSevere = if e >= hiS && e > loM then 1 else 0
+                }
           !loS = q1 - (iqr * 3)
           !loM = q1 - (iqr * 1.5)
           !hiM = q3 + (iqr * 1.5)
@@ -154,7 +157,7 @@ countOutliers (Outliers _ a b c d) = a + b + c + d
 -------------------------------------------------------------------------------
 
 useRegression :: Bool
-useRegression = False
+useRegression = True
 
 resampleCount :: Int
 resampleCount = 1000
@@ -221,14 +224,20 @@ rescaleIteration fnames (iter, vals) =
     foldFields = map getMeanOrMax fnames
 
 data AnalyzedField = AnalyzedField
-    { analyzedMean       :: Double
-    , analyzedStdDev     :: Double
+    { analyzedMean       :: !Double
+    , analyzedStdDev     :: !Double
     , analyzedOutlierVar :: !OutlierVariance
     , analyzedOutliers   :: !Outliers
     , analyzedKDE        :: !(U.Vector Double, U.Vector Double)
     , analyzedRegCoeff   :: Maybe (Estimate ConfInt Double)
     , analyzedRegRSq     :: Maybe (Estimate ConfInt Double)
     } deriving Show
+
+getAnalyzedValue :: AnalyzedField -> Double
+getAnalyzedValue AnalyzedField{..} =
+    case analyzedRegCoeff of
+        Nothing -> analyzedMean
+        Just x -> estPoint x
 
 -- | Perform an analysis of a measurement.
 analyzeBenchmark :: GenIO
@@ -252,6 +261,7 @@ analyzeBenchmark randGen cols samples = do
             (ms, ds) <- fmap unzip $ estimateMeanAndStdDev randGen vectors
             return (map estPoint ms, map estPoint ds, map Just cs, map Just rs)
         else do
+            -- Even for max fields (e.g. maxrss) we take the mean
             let ms = map mean vectors
                 ds = map stdDev vectors
                 n = length cols
@@ -280,11 +290,10 @@ data BenchmarkIterMatrix = BenchmarkIterMatrix
     , iterRowValues :: ![(String, [(Int, [Double])])]
     } deriving Show
 
--- Stored by rows
--- XXX store as a rowMap, each row having a colMap?
+-- Stored in row major order
 data BenchmarkMatrix = BenchmarkMatrix
-    { colNames :: [String]
-    , rowValues :: [(String, [Double])] -- (Benchmark, columns)
+    { colNames  :: ![String]
+    , rowValues :: ![(String, [AnalyzedField])] -- (Benchmark, columns)
     } deriving Show
 
 foldBenchmark :: BenchmarkIterMatrix -> IO BenchmarkMatrix
@@ -300,4 +309,18 @@ foldBenchmark BenchmarkIterMatrix{..} = do
 
     foldIters randGen (name, vals) = do
             vals' <- analyzeBenchmark randGen iterColNames vals
-            return (name, map analyzedMean vals')
+            return (name, vals')
+
+-- take top samples
+filterSamples :: BenchmarkIterMatrix -> BenchmarkIterMatrix
+filterSamples BenchmarkIterMatrix{..} =
+    BenchmarkIterMatrix
+        { iterColNames = iterColNames
+        , iterRowValues = map filterIters iterRowValues
+        }
+
+    where
+
+    filterIters (name, vals) =
+        let vals' = take 50 $ reverse $ sortBy (comparing fst) vals
+        in (name, vals')

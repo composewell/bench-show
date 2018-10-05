@@ -19,11 +19,13 @@ module BenchGraph.Report
 
 import Control.Monad (forM_)
 import Data.Maybe (fromMaybe)
+import Statistics.Types (Estimate(..))
 import Text.PrettyPrint.ANSI.Leijen
 import Text.Printf (printf)
 import Prelude hiding ((<$>))
 
 import BenchGraph.Common
+import BenchGraph.Analysis
 
 -- XXX in comparative reports render lower than baseline in green and higher
 -- than baseline in red
@@ -66,7 +68,23 @@ genGroupReport RawReport{..} cfg@Config{..} = do
         in map (\x -> indent (maxlen - length x) $ text x)
                (h : replicate maxlen '-' : rows)
 
-    showFirstCol ReportColumn{..} = colName : map (printf "%.2f") colValues
+    -- XXX we may use regression for some benchmarks and mean for others. In
+    -- that case we need to distringuish that fact in the report.
+    varMetric AnalyzedField{..} =
+        case analyzedRegRSq of
+            Nothing -> Left analyzedStdDev
+            Just Estimate{..} -> Right estPoint
+
+    showMetric val metric =
+        case metric of
+            Left x -> printf "%.2f%%" $ val * 100 / x -- % of value
+            Right x -> printf "%.2f" x -- r square
+
+    showFirstCol ReportColumn{..} =
+        let colWithDev = zipWith
+                (\x y -> printf "%.2f(" x ++ (showMetric x y) ++ ")")
+                colValues (map varMetric $ head reportAnalyzed)
+        in colName : colWithDev
     showCol ReportColumn{..} = colName :
         let showDiff x =
                 if x > 0
