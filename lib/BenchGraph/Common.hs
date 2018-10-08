@@ -108,17 +108,17 @@ data Presentation =
                         -- are @m@ fields and @n@ groups selected by the
                         -- configuration then a total of @m x n@ reports are
                         -- generated.  Output files are named using
-                        -- @-groupname-fieldname@ as suffix.
+                        -- @-estimator-groupname-fieldname@ as suffix.
     | Groups GroupStyle -- ^ One report is generated for each field selected by
                         -- the configuration. Each report presents a field
                         -- with all the groups selected by the configuration as
                         -- columns or clusters. Output files are named using
-                        -- @-fieldname@ as suffix.
+                        -- @-estimator-fieldname@ as suffix.
     | Fields            -- ^ One report is generated for each group selected by
                         -- the configuration. Each report presents a group
                         -- with all the fields selected by the configuration as
                         -- columns or clusters. Output files are named using
-                        -- @-groupname@ as suffix.
+                        -- @-estimator-groupname@ as suffix.
     deriving (Eq, Show)
 
 -- | FieldTick is used only in visual charts to generate the major ticks on
@@ -151,14 +151,27 @@ data SortColumn =
         -- benchmark run in the file. When there are multiple runs, a group
         -- needs to specify a @runId@ as well using the 'Right' constructor.
 
+data DiffStrategy =
+      SingleEstimator -- ^ Use a single estimator to compute the difference
+                      -- between the baseline and the candidate
+    | MinEstimator    -- ^ Use Mean, Median and Regression estimators for both
+                      -- baseline and candidate and report the estimator that
+                      -- shows the minimum difference. This is more robust
+                      -- against random variations.
+    -- | WorstBest
+    -- | BestBest
+
 -- | Configuration governing generation of chart. See 'defaultConfig' for the
 -- default values of these fields.
 --
 -- @since 0.2.0
 data Config = Config
     {
+    -- | Provide more details in the report.
+      verbose :: Bool
+
     -- | The directory where the output graph or report file should be placed.
-      outputDir   :: Maybe FilePath
+    , outputDir   :: Maybe FilePath
 
     -- | Report title, more information like the plotted field name or
     -- the presentation style may be added to it.
@@ -166,6 +179,16 @@ data Config = Config
 
     -- | How to determine the layout of the report or the chart.
     , presentation :: Presentation
+
+    -- | The estimator used for the report.
+    , estimator    :: Estimator
+
+    -- | The minimum percentage difference between two runs of a benchmark
+    -- beyond which the benchmark is flagged to have regressed or improved.
+    , threshold :: Word
+
+    -- | Strategy to compare two runs or groups of benchmarks.
+    , diffStrategy  :: DiffStrategy
 
     ---------------------------------------------------------------------------
     -- Fields (Columns)
@@ -226,9 +249,13 @@ data Config = Config
 -- required fields. The defaults are:
 --
 -- @
---  outputDir         = Nothing
+--  verbose           = False
 --  title             = Nothing
+--  outputDir         = Nothing
 --  presentation      = Groups Absolute
+--  estimator         = Median
+--  threshold         = 3
+--  diffStrategy      = MinEstimator
 --  selectFields      = filter (flip elem ["time", "mean", "maxrss"] . map toLower)
 --  fieldRanges       = []
 --  fieldTicks        = []
@@ -240,9 +267,13 @@ data Config = Config
 -- @since 0.2.0
 defaultConfig :: Config
 defaultConfig = Config
-    { title             = Nothing
+    { verbose           = False
+    , title             = Nothing
     , outputDir         = Nothing
     , presentation      = Groups Absolute
+    , estimator         = Median
+    , threshold         = 3
+    , diffStrategy      = MinEstimator
     , selectFields      = filter (flip elem ["time", "mean", "maxrss"] . map toLower)
     , fieldRanges       = []
     , fieldTicks        = []
@@ -268,14 +299,26 @@ timeFields = map (map toLower)
     , "gcCpuSeconds"
     ]
 
-allocFields :: [String]
-allocFields = map (map toLower) ["allocated", "bytesCopied", "maxrss"]
-
 isTimeField :: String -> Bool
 isTimeField fieldName = map toLower fieldName `elem` timeFields
 
+allocFields :: [String]
+allocFields = map (map toLower) ["allocated", "bytesCopied", "maxrss"]
+
 isAllocationField :: String -> Bool
 isAllocationField fieldName = map toLower fieldName `elem` allocFields
+
+predictorFields :: [String]
+predictorFields = map (map toLower)
+    [ "iters"
+    -- , "minflt"
+    -- , "majflt"
+    -- , "nvcsw"
+--    , "nivcsw"
+    ]
+
+isPredictorField :: String -> Bool
+isPredictorField fieldName = map toLower fieldName `elem` predictorFields
 
 -------------------------------------------------------------------------------
 -- Units
@@ -334,31 +377,74 @@ percent v1 v2 = (v2 * 100) / v1
 
 cmpTransformColumns :: ReportType
                     -> GroupStyle
-                    -> [[(String, Double)]]
-                    -> [[(String, Double)]]
-cmpTransformColumns rtype style columns =
+                    -> Estimator
+                    -> DiffStrategy
+                    -- XXX we do not really need the benchmark name here
+                    -> [[(String, AnalyzedField)]]
+                    -> (Maybe [[Estimator]], [[(String, Double)]])
+cmpTransformColumns rtype style estimator diffStrategy cols =
     let cmpWith diff =
             let firstCol = head columns
                 colTransform col =
                     let mkDiff (n1, v1) (n2,v2) =
                             assert (n1 == n2) (n2, diff v1 v2)
                     in zipWith mkDiff firstCol col
-            in colTransform firstCol : map colTransform (tail columns)
+            in map colTransform (tail columns)
+
+        cmpMinWith diff =
+            let firstCol = head cols
+                colTransform col = zipWith (mkMinDiff diff) firstCol col
+            in map colTransform (tail cols)
     in case style of
-            Absolute    -> columns
-            Diff        -> head columns : drop 1 (cmpWith absoluteDiff)
-            Percent     -> cmpWith percent
+            Absolute    -> (Nothing, columns)
+            Percent     -> (Nothing, cmpWith percent)
+            Diff        ->
+                case diffStrategy of
+                    MinEstimator ->
+                        let (ests, vals) = unzip $ map unzip (cmpMinWith absoluteDiff)
+                        in ( Just $ map (const estimator) (head cols) : ests
+                           , head columns : vals
+                           )
+                    SingleEstimator ->
+                        (Nothing, head columns : cmpWith absoluteDiff)
             PercentDiff ->
-                -- In a graphical chart we cannot show the absolute values in
-                -- the baseline column as the units won't match for the
-                -- baseline and the diff clusters.
+                -- In a comparative graphical chart we cannot show the absolute
+                -- values in the baseline column as the units won't match for
+                -- the baseline and the diff clusters.
                 let baseCol =
                         case rtype of
                             TextReport -> head columns
-                            GraphicalChart | length columns == 1 -> head columns
+                            GraphicalChart | length columns == 1 ->
+                                head columns
                             GraphicalChart ->
                                 map (\(n,_) -> (n,100)) (head columns)
-                in baseCol : drop 1 (cmpWith percentDiff)
+                in case diffStrategy of
+                    MinEstimator ->
+                        let (ests, vals) = unzip $ map unzip (cmpMinWith percentDiff)
+                        in ( Just $ map (const estimator) (head cols) : ests
+                           , baseCol : vals
+                           )
+                    SingleEstimator ->
+                       (Nothing, baseCol : cmpWith percentDiff)
+    where
+        transformVals = map (map (second (getAnalyzedValue estimator)))
+        columns = transformVals cols
+
+        -- Find which estimator gives us the minimum diff
+        mkMinDiff diff (n1, v1) (n2,v2) = assert (n1 == n2) $
+            let meanDiff = diff (getAnalyzedValue Mean v1)
+                                (getAnalyzedValue Mean v2)
+                medDiff = diff (getAnalyzedValue Median v1)
+                               (getAnalyzedValue Median v2)
+                regDiff = diff (getAnalyzedValue Regression v1)
+                               (getAnalyzedValue Regression v2)
+            in if abs medDiff <= abs meanDiff
+               then if abs medDiff <= abs regDiff
+                    then (Median, (n2, medDiff))
+                    else (Regression, (n2, regDiff))
+                else if abs meanDiff <= abs regDiff
+                     then (Mean, (n2, meanDiff))
+                     else (Regression, (n2, regDiff))
 
 transformColumnNames :: GroupStyle -> [ReportColumn] -> [ReportColumn]
 transformColumnNames _ [] = []
@@ -455,9 +541,9 @@ extractColumn field GroupMatrix{..} =
                 ++ groupName ++ "] and run id [" ++ show groupIndex ++ "]"
     in zip (map fst groupBenches) vals
 
-extractColumnMean :: String -> GroupMatrix -> [(String, Double)]
-extractColumnMean field matrix =
-    map (second getAnalyzedValue) $ extractColumn field matrix
+extractColumnValue :: String -> GroupMatrix -> Estimator -> [(String, Double)]
+extractColumnValue field matrix estimator =
+    map (second (getAnalyzedValue estimator)) $ extractColumn field matrix
 
 benchmarkCompareSanity :: [String] -> GroupMatrix -> [String]
 benchmarkCompareSanity benchmarks GroupMatrix{..} = do
@@ -565,7 +651,7 @@ selectBenchmarksByGroup Config{..} grp@GroupMatrix{..} =
                         ++ "] not found in group ["
                         ++ groupName ++ "]. Available fields are: "
                         ++ show fields
-            True -> extractColumnMean name grp
+            True -> extractColumnValue name grp estimator
 
     extractColumnByFieldIndex idx =
         let fields = colNames groupMatrix
@@ -573,7 +659,7 @@ selectBenchmarksByGroup Config{..} grp@GroupMatrix{..} =
         in if idx >= len
            then error $ "Column index must be in the range [0-"
                 ++ show (len - 1) ++ "]"
-           else extractColumnMean (fields !! idx) grp
+           else extractColumnValue (fields !! idx) grp estimator
 
 type NumberedLines = [(Int, [String])]
 
@@ -600,35 +686,81 @@ sanityCheckCSV csvlines =
                             \ the header line"
               )
 
--- Only keep those fields that are passed to this function
--- Make sure that "name" and "iters" are the first and second columns
-filterFields :: [String] -> NumberedLines -> NumberedLines
-filterFields fieldNames csvlines =
-      unzip csvlines
-    & second transpose
-    & second (filter required)
-    & second reorderNameIter
-    & second transpose
-    & uncurry zip
+-- An iteration field indicates that consecutive rows with the same benchmark
+-- name have results from different iterations of the same benchmark and the
+-- measurement fields have to be scaled per iteration based on the number of
+-- iterations in the iteration count field.
+--
+-- Make sure that "iters" and "name" are the first and second columns
+ensureIterField :: ([String], [NumberedLines])  -> ([String], [NumberedLines])
+ensureIterField (header, groups) =
+    ( "iters" : "name" : filter isNotNameIter header
+    , map reorderNameIter groups
+    )
 
     where
 
-    required [] = True
-    required (x:_) =
-           map toLower x == "name"
-        || map toLower x == "iters"
-        || x `elem` fieldNames
-
-    notNameIters [] = True
-    notNameIters (x:_) =
+    isNotNameIter x =
            map toLower x /= "name"
         && map toLower x /= "iters"
 
-    reorderNameIter xs =
-        let findField x = find (\(y:_) -> map toLower y == x)
-        in    fromMaybe [] (findField "iters" xs)
-           :  fromMaybe [] (findField "name" xs)
-           : (filter notNameIters xs)
+    notNameIters [] = True
+    notNameIters (x:_) = isNotNameIter x
+
+    nameNotFound = error "Name field is required in the csv file"
+
+    reorderNameIter csvlines =
+          unzip csvlines
+        & second (header :)
+        & second transpose
+        & second reorder
+        & second transpose
+        & uncurry zip
+
+        where
+
+        reorder xs =
+            let findField x = find (\(y:_) -> map toLower y == x)
+                iterCol = replicate (length (head xs) - 1) "1"
+            in   fromMaybe iterCol (fmap tail $ findField "iters" xs)
+               : fromMaybe nameNotFound (fmap tail $ findField "name" xs)
+               : map tail (filter notNameIters xs)
+
+-- Only keep those fields that are passed to this function
+-- Also, preserve any predictor fields for regression analysis
+filterFields :: [String] -> BenchmarkIterMatrix -> BenchmarkIterMatrix
+filterFields fieldNames BenchmarkIterMatrix{..} =
+    BenchmarkIterMatrix
+        { iterPredColNames = ["iters"] ++ filter isPredictorField iterRespColNames
+        , iterRespColNames = filter isRequestedField iterRespColNames
+        , iterRowValues = transform iterRowValues
+        }
+
+    where
+
+    transform :: [(String, [([Double], [Double])])] -> [(String, [([Double], [Double])])]
+    transform = map (\(name, tuples) ->
+        let (ys, zs) = unzip tuples
+            pcols = transpose (map Left iterPredColNames : map (map Right) ys)
+            rcols = transpose (map Left iterRespColNames : map (map Right) zs)
+            pcols' = pcols ++ filter isPredictor rcols
+            rcols' = filter requested rcols
+            pcols'' = map (map fromRt) $ tail $ transpose pcols'
+            rcols'' = map (map fromRt) $ tail $ transpose rcols'
+        in (name, zip pcols'' rcols''))
+
+    fromRt (Right x) = x
+    fromRt _ = error "bug"
+
+    isRequestedField = (`elem` fieldNames)
+
+    requested [] = True
+    requested (Left x:_) = isRequestedField x
+    requested _ = error "bug"
+
+    isPredictor [] = True
+    isPredictor (Left x:_) = isPredictorField x
+    isPredictor _ = error "bug"
 
 -- Split the file into different runs
 -- return the header fields and list of runs without the header
@@ -642,7 +774,8 @@ readWithError :: Read a => Int -> String -> (String, String) -> a
 readWithError lno typ (fname, fval) =
     case readMaybe fval of
         Nothing -> error $ "Cannot read " ++ show fname
-            ++ " field as " ++ typ ++ " type at line number "
+            ++ " field [" ++ show fval ++ "] as "
+            ++ typ ++ " type at line number "
             ++ show lno
         Just n -> n
 
@@ -655,23 +788,18 @@ readWithError lno typ (fname, fval) =
 -- iteration column.
 readIterations :: [String] -> NumberedLines -> BenchmarkIterMatrix
 readIterations header csvlines =
-    let (header', csvlines') = addIterField header csvlines
-        tuples =
-            map (parseNumericFields header') csvlines'
+    let tuples =
+            map (parseNumericFields header) csvlines
             -- we now have a list of triples [(iter, name, (fieldName, [Double])]
           & groupBy successiveIters
           & map (foldl' addIters ("",[]))
     in BenchmarkIterMatrix
-        { iterColNames = drop 2 header'
+        { iterPredColNames = ["iters"]
+        , iterRespColNames = drop 2 header
         , iterRowValues = tuples
         }
 
     where
-
-    addIterField hdr nlines =
-        if map toLower (head hdr) /= "iters"
-        then ("iters" : hdr, map (\(lno,vals) -> (lno, "1" : vals)) nlines)
-        else (hdr, nlines)
 
     -- The first column is iters and the second is the name
     -- We zip the header for error reporting
@@ -688,7 +816,7 @@ readIterations header csvlines =
     successiveIters (i1,name1,_) (i2,name2,_) = name2 == name1 && i2 > i1
 
     addIters (_,siters) (iter,name,vals) =
-        (name, (iter, map snd vals) : siters)
+        (name, ([fromIntegral iter], map snd vals) : siters)
 
 getFieldRange :: String -> Config -> Maybe (Double, Double)
 getFieldRange fieldName Config{..} =
@@ -707,9 +835,14 @@ getReportExtension rtype =
         TextReport -> ".txt"
         GraphicalChart -> ".svg"
 
-prepareOutputFile :: FilePath -> ReportType -> FilePath -> String -> IO FilePath
-prepareOutputFile dir rtype file field = do
-    let path = dir </> (file ++ "-" ++ field ++ getReportExtension rtype)
+prepareOutputFile :: FilePath -> ReportType -> FilePath -> Estimator -> String -> IO FilePath
+prepareOutputFile dir rtype file est field = do
+    let estStr = case est of
+            Mean -> "mean"
+            Median -> "median"
+            Regression -> "coeff"
+    let path = dir </> (file ++ "-" ++ estStr ++ "-" ++ field
+                             ++ getReportExtension rtype)
     return path
 
 prepareToReport :: FilePath -> Config -> IO (CSV, [String])
@@ -738,7 +871,6 @@ filterGroupBenchmarks matrices = return $ map filterMatrix matrices
     filterMatrix matrix =
         -- XXX make sure there are no duplicates
         let m = groupMatrix matrix
-            -- vals :: [(String, Double)]
             vals = map (\(new,old) ->
                 (new, fromMaybe (error "bug") $ lookup old (rowValues m)))
                 (groupBenches matrix)
@@ -748,9 +880,10 @@ prepareGroupMatrices :: Config -> CSV -> [String] -> IO (Int, [GroupMatrix])
 prepareGroupMatrices cfg@Config{..} csvlines fields = do
     let (hdr, runs) =
               sanityCheckCSV csvlines
-            & filterFields fields
             & splitRuns
+            & ensureIterField
     xs <- sequence $ map (readIterations hdr) runs
+            & map (filterFields fields)
             & map filterSamples
             & map foldBenchmark
 
@@ -772,12 +905,14 @@ data ReportColumn = ReportColumn
     , colValues :: [Double]
     } deriving Show
 
+-- XXX put reportAnalyzed in reportColumns
 data RawReport = RawReport
     { reportOutputFile :: Maybe FilePath
     , reportIdentifier :: String
     , reportRowIds     :: [String]
     , reportColumns    :: [ReportColumn]
     , reportAnalyzed   :: [[AnalyzedField]]
+    , reportEstimators :: Maybe [[Estimator]]
     } deriving Show
 
 getFieldMin :: Config -> Double -> String -> Double
@@ -791,10 +926,10 @@ scaleAnalyzedField (RelativeUnit _ mult) AnalyzedField{..} =
     AnalyzedField
     { analyzedMean = analyzedMean / mult
     , analyzedStdDev = analyzedStdDev / mult
-    , analyzedOutlierVar = analyzedOutlierVar
-    -- XXX scale
+
+    , analyzedMedian = analyzedMedian / mult
     , analyzedOutliers = analyzedOutliers
-    -- XXX scale
+    , analyzedOutlierVar = analyzedOutlierVar
     , analyzedKDE = analyzedKDE
     , analyzedRegCoeff = case
         analyzedRegCoeff of
@@ -820,15 +955,17 @@ prepareGroupsReport :: Config
                     -> String
                     -> [GroupMatrix]
                     -> RawReport
-prepareGroupsReport cfg style outfile rtype runs field matrices =
+prepareGroupsReport cfg@Config{..} style outfile rtype runs field matrices =
     -- XXX Determine the unit based the whole range of values across all columns
     let sortValues :: [String] -> [(String, a)] -> [a]
         sortValues bmarks vals =
             map (\name -> fromMaybe (error "bug") (lookup name vals)) bmarks
 
         unsortedCols = map (extractColumn field) matrices
-        transformedCols = cmpTransformColumns rtype style
-            $ map (map (second getAnalyzedValue)) unsortedCols
+
+        -- XXX for the auto estimator we need to try all and choose the best
+        (estimators, transformedCols) =
+            cmpTransformColumns rtype style estimator diffStrategy unsortedCols
         benchmarks = selectBenchmarksByField cfg matrices transformedCols
         sortedCols = map (sortValues benchmarks) transformedCols
         origSortedCols = map (sortValues benchmarks) unsortedCols
@@ -883,11 +1020,13 @@ prepareGroupsReport cfg style outfile rtype runs field matrices =
             , reportColumns    = transformColumnNames style columns
             , reportAnalyzed   = zipWith (\x y -> map (scaleAnalyzedField x) y)
                                          mkColUnits origSortedCols
+            , reportEstimators = estimators
             }
 
 showStatusMessage :: Show a => Config -> String -> Maybe a -> IO ()
 showStatusMessage cfg field outfile =
-    let atitle = makeTitle field (diffString (presentation cfg)) cfg
+    let atitle = makeTitle field (diffString (presentation cfg)
+                                 (diffStrategy cfg)) cfg
     in case outfile of
         Just path ->
             putStrLn $ "Creating chart "
@@ -909,18 +1048,21 @@ reportComparingGroups
     -> IO ()
 reportComparingGroups style dir outputFile rtype runs cfg@Config{..} mkReport matrices field = do
     outfile <- case outputFile of
-        Just file -> fmap Just $ prepareOutputFile dir rtype file field
+        Just file -> fmap Just $ prepareOutputFile dir rtype file
+                                        estimator field
         Nothing -> return Nothing
 
     let rawReport = prepareGroupsReport cfg style outfile rtype runs field matrices
     showStatusMessage cfg field outfile
     mkReport rawReport cfg
 
+-- Prepare report for a given group, the report would consist of multiple
+-- field columns.
 prepareFieldsReport :: Config
                  -> Maybe FilePath
                  -> GroupMatrix
                  -> RawReport
-prepareFieldsReport cfg outfile group =
+prepareFieldsReport cfg@Config{..} outfile group =
     let mkColNames :: [String]
         mkColNames = colNames $ groupMatrix group
 
@@ -931,7 +1073,7 @@ prepareFieldsReport cfg outfile group =
                 lookup name (rowValues $ groupMatrix group)
 
         sortedValues = map getBenchValues benchmarks
-        minValues = map (minimum . map getAnalyzedValue)
+        minValues = map (minimum . map (getAnalyzedValue estimator))
                         (transpose sortedValues)
 
         mkColUnits :: [RelativeUnit]
@@ -942,7 +1084,7 @@ prepareFieldsReport cfg outfile group =
         mkColValues =
             let scale (RelativeUnit _ multiplier) x = x / multiplier
             in  map (\ys -> zipWith scale mkColUnits ys)
-                    (map (map getAnalyzedValue) sortedValues)
+                    (map (map (getAnalyzedValue estimator)) sortedValues)
 
         addUnitLabel name (RelativeUnit label _) =
             if label /= []
@@ -961,6 +1103,7 @@ prepareFieldsReport cfg outfile group =
             , reportRowIds     = benchmarks
             , reportColumns    = columns
             , reportAnalyzed   = sortedValues
+            , reportEstimators = Nothing
             }
 
 reportPerGroup
@@ -973,7 +1116,8 @@ reportPerGroup
     -> IO ()
 reportPerGroup dir outputFile rtype cfg@Config{..} mkReport group = do
     outfile <- case outputFile of
-        Just file -> fmap Just $ prepareOutputFile dir rtype file (groupName group)
+        Just file -> fmap Just $ prepareOutputFile dir rtype file
+                                        estimator (groupName group)
         Nothing -> return Nothing
 
     let rawReport = prepareFieldsReport cfg outfile group
@@ -984,20 +1128,34 @@ reportPerGroup dir outputFile rtype cfg@Config{..} mkReport group = do
 -- Utility functions
 -------------------------------------------------------------------------------
 
-diffString :: Presentation -> Maybe String
-diffString style =
+showDiffStrategy :: DiffStrategy -> String
+showDiffStrategy s =
+    case s of
+        SingleEstimator -> ""
+        MinEstimator -> "using min estimator"
+
+diffString :: Presentation -> DiffStrategy -> Maybe String
+diffString style s =
     case style of
-        Groups Diff        -> Just $ "Diff from baseline"
-        Groups PercentDiff -> Just $ "Diff from baseline"
+        Groups Diff        -> Just $ "Diff " ++ showDiffStrategy s
+        Groups PercentDiff -> Just $ "Diff " ++ showDiffStrategy s
         _ -> Nothing
 
 inParens :: String -> String
 inParens str = "(" ++ str ++ ")"
 
+showEstimator :: Estimator -> String
+showEstimator est =
+    case est of
+        Mean       -> "Mean"
+        Median     -> "Median"
+        Regression -> "Regression Coeff."
+
 makeTitle :: String -> Maybe String -> Config -> String
 makeTitle field diff Config{..} =
        fromMaybe "" title
     ++ inParens field
+    ++ inParens (showEstimator estimator)
     ++ case diff of
             Nothing -> ""
             Just str -> inParens str

@@ -20,6 +20,7 @@ module BenchGraph.Analysis
     ( OutlierEffect(..)
     , OutlierVariance(..)
     , countOutliers
+    , Estimator(..)
     , AnalyzedField(..)
     , getAnalyzedValue
     , BenchmarkMatrix(..)
@@ -33,14 +34,14 @@ import Control.Applicative
 import Data.Char (toLower)
 import Data.Data (Data, Typeable)
 import Data.Int (Int64)
-import Data.List (sortBy, transpose)
-import Data.Ord (comparing)
+import Data.List (elemIndex, transpose)
+import Data.Maybe (fromMaybe)
 import Data.Traversable
 import GHC.Generics (Generic)
 import Statistics.Function (sort)
 import Statistics.Quantile (weightedAvg)
 import Statistics.Regression (bootstrapRegress, olsRegress)
-import Statistics.Resampling (Estimator(..), resample)
+import Statistics.Resampling (resample)
 import Statistics.Resampling.Bootstrap (bootstrapBCA)
 import Statistics.Sample (mean, stdDev)
 import Statistics.Sample.KernelDensity (kde)
@@ -48,6 +49,7 @@ import Statistics.Types (Sample, Estimate(..), ConfInt(..), cl95, CL)
 import System.Random.MWC (GenIO, createSystemRandom)
 import Prelude hiding (sequence, mapM)
 
+import qualified Statistics.Resampling as St
 import qualified Data.Vector.Generic as G
 import qualified Data.Vector.Unboxed as U
 
@@ -159,6 +161,9 @@ countOutliers (Outliers _ a b c d) = a + b + c + d
 useRegression :: Bool
 useRegression = True
 
+useBootstrap :: Bool
+useBootstrap = True
+
 resampleCount :: Int
 resampleCount = 1000
 
@@ -167,20 +172,25 @@ confidence = cl95
 
 regress
     :: GenIO
-    -> [(Int, [Double])]
-    -> IO [(Estimate ConfInt Double, Estimate ConfInt Double)]
-regress randGen iterValues = do
+    -> Int  -- index of the iters field, we return the coefficient of only the
+            -- iters field
+    -> [String] -- responder column names
+    -> [([Double], [Double])]
+    -> IO [Maybe (Estimate ConfInt Double, Estimate ConfInt Double)]
+regress randGen i rcols samples = do
     -- perform ordinary least squares regression for each field
-    -- the only predictor we use is the number of iterations
-    let iterVectors = [U.fromList $ map (fromIntegral . fst) iterValues]
-        regressWithIters = bootstrapRegress randGen resampleCount
-                                confidence olsRegress iterVectors
+    -- the main predictor is the number of iterations
+    let predVectors = map U.fromList $ transpose $ map fst samples
+        regressWithIters = mapM (bootstrapRegress randGen resampleCount
+                                confidence olsRegress predVectors)
 
-    res <- mapM regressWithIters
-            $ map (U.fromList)
-            $ transpose
-            $ map snd iterValues
-    return $ map (\(v,r2) -> (head (G.toList v), r2)) res
+    let avoidMaxFields name vec =
+            if isMaxField name
+            then Nothing
+            else Just vec
+    let respVectors = map U.fromList $ transpose $ map snd samples
+    res <- mapM regressWithIters (zipWith avoidMaxFields rcols respVectors)
+    return $ map (fmap (\(v,r2) -> ((G.toList v) !! i, r2))) res
 
 -------------------------------------------------------------------------------
 -- Mean and std deviation by boostrap resampling
@@ -191,12 +201,13 @@ estimateMeanAndStdDev
     -> [U.Vector Double]
     -> IO [(Estimate ConfInt Double, Estimate ConfInt Double)]
 estimateMeanAndStdDev randGen vectors = do
-    resamps <- mapM (resample randGen [Mean,StdDev] resampleCount) vectors
+    let resamp = resample randGen [St.Mean, St.StdDev] resampleCount
+    res <- mapM resamp vectors
     return $ fmap (\[mn,dev] -> (mn, dev))
         $ getZipList
         $ bootstrapBCA confidence
             <$> ZipList vectors
-            <*> ZipList resamps
+            <*> ZipList res
 
 -------------------------------------------------------------------------------
 -- Statistical analysis of benchmark iterations
@@ -210,84 +221,125 @@ estimateMeanAndStdDev randGen vectors = do
 isMaxField :: String -> Bool
 isMaxField fieldName = map toLower fieldName == "maxrss"
 
-rescaleIteration :: [String] -> (Int, [Double]) -> [Double]
-rescaleIteration fnames (iter, vals) =
-    zipWith ($) (map ($ iter) foldFields) vals
+rescaleIteration :: Int -> [String] -> ([Double], [Double]) -> [Double]
+rescaleIteration idx rcols (pvals, vals) =
+    let iter = pvals !! idx
+    in zipWith ($) (map ($ iter) foldFields) vals
 
     where
 
     getMeanOrMax fname i val =
         if isMaxField fname
         then val
-        else val / fromIntegral i
+        else val / i
 
-    foldFields = map getMeanOrMax fnames
+    foldFields = map getMeanOrMax rcols
 
 data AnalyzedField = AnalyzedField
     { analyzedMean       :: !Double
     , analyzedStdDev     :: !Double
-    , analyzedOutlierVar :: !OutlierVariance
+
+    , analyzedMedian     :: !Double
     , analyzedOutliers   :: !Outliers
+    , analyzedOutlierVar :: !OutlierVariance
     , analyzedKDE        :: !(U.Vector Double, U.Vector Double)
+
     , analyzedRegCoeff   :: Maybe (Estimate ConfInt Double)
     , analyzedRegRSq     :: Maybe (Estimate ConfInt Double)
     } deriving Show
 
-getAnalyzedValue :: AnalyzedField -> Double
-getAnalyzedValue AnalyzedField{..} =
-    case analyzedRegCoeff of
-        Nothing -> analyzedMean
-        Just x -> estPoint x
+-- | The statistical estimator used to arrive at a single value for a
+-- benchmark when samples from multiple experiments are available.
+data Estimator =
+      Median        -- ^ Report the median, outliers and outlier variance using
+                    -- box-plot method. This is the most robust indicator
+                    -- with respect to outliers when successive runs of
+                    -- benchmarks are compared.
+    | Mean          -- ^ Report the mean and the standard deviation from the
+                    -- mean. This is less robust than median but more precise.
+    | Regression    -- ^ Report the coefficient of regression, discarding the
+                    -- constant factor, arrived at by linear regression using
+                    -- ordinary least square method.  The R-square
+                    -- goodness-of-fit estimate is also reported.  It works
+                    -- better when larger number of samples are taken.  This
+                    -- cannot be used when the number of samples is less than
+                    -- 3, in that case a mean value is reported instead.
+    deriving (Eq, Show)
+
+getAnalyzedValue :: Estimator -> AnalyzedField -> Double
+getAnalyzedValue estimator AnalyzedField{..} =
+    case estimator of
+        Median -> analyzedMedian
+        Mean -> analyzedMean
+        Regression ->
+            case analyzedRegCoeff of
+                Nothing -> analyzedMean
+                Just x -> estPoint x
 
 -- | Perform an analysis of a measurement.
 analyzeBenchmark :: GenIO
                  -> [String]
-                 -> [(Int, [Double])]
+                 -> [String]
+                 -> [([Double], [Double])]
                  -> IO [AnalyzedField]
-analyzeBenchmark randGen cols samples = do
+analyzeBenchmark randGen pcols rcols samples = do
     let sampleCnt = length samples
+        i = fromMaybe (error "bug") $ elemIndex "iters" pcols
         vectors = map U.fromList
             $ transpose
-            $ map (rescaleIteration cols) samples
+            $ map (rescaleIteration i rcols) samples
 
-    (means, devs, coeffs, r2s) <-
-        -- samples lower than 3 produce negative values for time
-        -- but anyway this is for experimentation so we provide unconditional
-        -- use when enabled.
-        if useRegression -- && length samples >= 3
+    (coeffs, r2s) <-
+        -- olsRegress fails if there are fewer samples than predictors
+        if useRegression && length samples >= (length pcols + 1)
         then do
-            -- XXX do not regress a max field
-            (cs, rs) <- fmap unzip $ regress randGen samples
+            let f (Just (x, y)) = (Just x, Just y)
+                f Nothing = (Nothing, Nothing)
+            fmap (unzip . map f) $ regress randGen i rcols samples
+        else do
+            let n = length rcols
+            return (replicate n Nothing, replicate n Nothing)
+
+    (means, devs) <-
+        if useBootstrap
+        then do
             (ms, ds) <- fmap unzip $ estimateMeanAndStdDev randGen vectors
-            return (map estPoint ms, map estPoint ds, map Just cs, map Just rs)
+            return (map estPoint ms, map estPoint ds)
         else do
             -- Even for max fields (e.g. maxrss) we take the mean
             let ms = map mean vectors
                 ds = map stdDev vectors
-                n = length cols
-            return (ms, ds, replicate n Nothing, replicate n Nothing)
+            return (ms, ds)
 
-    let ovs = getZipList
+    let len = U.length $ head vectors
+        median v = (sort v) U.! (len `div` 2)
+        medians = map median vectors
+        outliers = getZipList $ classifyOutliers <$> ZipList vectors
+        outlierVars = getZipList
                 $ outlierVariance
                     <$> ZipList means
                     <*> ZipList devs
                     <*> pure (fromIntegral sampleCnt)
-        outliers = getZipList $ classifyOutliers <$> ZipList vectors
         kdes = map (kde 128) vectors
 
     return $ getZipList $ AnalyzedField
         <$> ZipList means
         <*> ZipList devs
-        <*> ZipList ovs
+
+        <*> ZipList medians
         <*> ZipList outliers
+        <*> ZipList outlierVars
         <*> ZipList kdes
+
         <*> ZipList coeffs
         <*> ZipList r2s
 
+-- predictor matrix
 data BenchmarkIterMatrix = BenchmarkIterMatrix
-    { iterColNames  :: ![String]
-    -- (Benchmark, [(iters, columns)])
-    , iterRowValues :: ![(String, [(Int, [Double])])]
+    { iterPredColNames  :: ![String]  -- predictor column names
+    , iterRespColNames  :: ![String]  -- responder column names
+    -- (Benchmark, [(predictor columns, responder columns)])
+    , iterRowValues :: ![(String, [([Double], [Double])])]
     } deriving Show
 
 -- Stored in row major order
@@ -301,26 +353,41 @@ foldBenchmark BenchmarkIterMatrix{..} = do
     randGen <- createSystemRandom
     rows <- mapM (foldIters randGen) iterRowValues
     return $ BenchmarkMatrix
-        { colNames = iterColNames
+        { colNames = iterRespColNames
         , rowValues = rows
         }
 
     where
 
     foldIters randGen (name, vals) = do
-            vals' <- analyzeBenchmark randGen iterColNames vals
+            vals' <- analyzeBenchmark randGen iterPredColNames
+                                      iterRespColNames vals
             return (name, vals')
 
 -- take top samples
+-- XXX take equivalent iterations across multiple groups
 filterSamples :: BenchmarkIterMatrix -> BenchmarkIterMatrix
 filterSamples BenchmarkIterMatrix{..} =
     BenchmarkIterMatrix
-        { iterColNames = iterColNames
-        , iterRowValues = map filterIters iterRowValues
+        { iterPredColNames = iterPredColNames
+        , iterRespColNames = iterRespColNames
+        , iterRowValues = iterRowValues
+        -- , iterRowValues = map filterIters iterRowValues
         }
 
+        {-
     where
 
+    iterIndex = fromMaybe undefined
+        $ elemIndex "iters" (map (map toLower) iterPredColNames)
+    nivcswIndex = fromMaybe undefined
+        $ elemIndex "nivcsw" (map (map toLower) iterPredColNames)
     filterIters (name, vals) =
-        let vals' = take 50 $ reverse $ sortBy (comparing fst) vals
-        in (name, vals')
+        let vals'' = take 50 $ reverse $ sortBy (comparing ((!! iterIndex) .  fst)) vals
+        let vals' = filter (\(x,_) -> x !! nivcswIndex < 10) vals
+            vals'' =
+                if null vals'
+                then trace "null after filter" vals
+                else vals'
+        in (name, vals'')
+        -}

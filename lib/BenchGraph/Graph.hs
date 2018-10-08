@@ -77,7 +77,7 @@ genGroupGraph RawReport{..} cfg@Config{..} = do
         columns = transformColumns reportColumns
         diffStr =
             if length reportColumns > 1
-            then diffString presentation
+            then diffString presentation diffStrategy
             else Nothing
         atitle = makeTitle reportIdentifier diffStr cfg
 
