@@ -44,7 +44,8 @@ import Control.Monad (when, unless)
 import Data.Char (toLower)
 import Data.Foldable (foldl')
 import Data.Function ((&), on)
-import Data.List (transpose, groupBy, (\\), find, sortBy, elemIndex)
+import Data.List
+       (transpose, groupBy, (\\), find, sortBy, elemIndex, intersectBy)
 import Data.List.Split (linesBy)
 import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Ord (comparing)
@@ -314,7 +315,7 @@ predictorFields = map (map toLower)
     -- , "minflt"
     -- , "majflt"
     -- , "nvcsw"
---    , "nivcsw"
+    -- , "nivcsw"
     ]
 
 isPredictorField :: String -> Bool
@@ -876,6 +877,43 @@ filterGroupBenchmarks matrices = return $ map filterMatrix matrices
                 (groupBenches matrix)
         in matrix {groupMatrix = m {rowValues = vals}}
 
+_filterCommonSubsets :: [BenchmarkIterMatrix] -> [BenchmarkIterMatrix]
+_filterCommonSubsets matrices =
+    let commonPreds =
+            let initPreds = matrixPreds $ head matrices
+            in foldl' intersectPreds initPreds (tail matrices)
+    in map (isectCommonPreds commonPreds) matrices
+
+    where
+
+    pcols = iterPredColNames $ head matrices
+
+    cmpPred name v1 v2 =
+            case map toLower name of
+                "iters" -> v1 == v2
+                "nivcsw" -> v1 == v2
+                _ -> v1 == v2
+
+    isectBench (name1, preds1) (name2, preds2) =
+        let isect row1 row2 = all id $ zipWith3 cmpPred pcols row1 row2
+        in assert (name1 == name2) $ (name1, intersectBy isect preds1 preds2)
+
+    matrixPreds = map (second (map fst)) . iterRowValues
+
+    intersectPreds preds matrix = zipWith isectBench preds (matrixPreds matrix)
+
+    isectRows (name1, preds1) (name2, xs) =
+        let isect row1 = find (\(x,_) -> all id
+                                $ zipWith3 cmpPred pcols row1 x) xs
+        in assert (name1 == name2) $ (name1, mapMaybe isect preds1)
+
+    isectCommonPreds preds BenchmarkIterMatrix{..} =
+        BenchmarkIterMatrix
+            { iterPredColNames = iterPredColNames
+            , iterRespColNames = iterRespColNames
+            , iterRowValues = zipWith isectRows preds iterRowValues
+            }
+
 prepareGroupMatrices :: Config -> CSV -> [String] -> IO (Int, [GroupMatrix])
 prepareGroupMatrices cfg@Config{..} csvlines fields = do
     let (hdr, runs) =
@@ -884,7 +922,8 @@ prepareGroupMatrices cfg@Config{..} csvlines fields = do
             & ensureIterField
     xs <- sequence $ map (readIterations hdr) runs
             & map (filterFields fields)
-            & map filterSamples
+            -- & _filterCommonSubsets
+            -- & map filterSamples
             & map foldBenchmark
 
     zip [0..] xs
