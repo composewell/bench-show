@@ -70,8 +70,10 @@ main = do
         , presentation = Groups PercentDiff
         , selectBenchmarks =
               \f ->
-                  reverse $ map fst $
-                  sortBy (comparing snd) $ f $ ColumnIndex 1
+                    reverse
+                  $ map fst
+                  $ sortBy (comparing snd)
+                  $ either error id $ f $ ColumnIndex 1
         }
 
     report "test/results-doc.csv" Nothing
@@ -80,8 +82,10 @@ main = do
         , presentation = Groups PercentDiff
         , selectBenchmarks =
               \f ->
-                  reverse $ map fst $
-                  sortBy (comparing snd) $ f $ ColumnIndex 1
+                    reverse
+                  $ map fst
+                  $ sortBy (comparing snd)
+                  $ either error id $ f $ ColumnIndex 1
         }
 
     graph
@@ -92,8 +96,10 @@ main = do
         , presentation = Groups PercentDiff
         , selectBenchmarks =
               \f ->
-                  reverse $ map fst $
-                  sortBy (comparing snd) $ f $ ColumnIndex 1
+                    reverse
+                  $ map fst
+                  $ sortBy (comparing snd)
+                  $ either error id $ f $ ColumnIndex 1
         }
 
     report
@@ -104,6 +110,8 @@ main = do
         , presentation = Groups PercentDiff
         , selectBenchmarks =
               \f ->
-                  reverse $ map fst $
-                  sortBy (comparing snd) $ f $ ColumnIndex 1
+                    reverse
+                  $ map fst
+                  $ sortBy (comparing snd)
+                  $ either error id $ f $ ColumnIndex 1
         }

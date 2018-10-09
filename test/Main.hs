@@ -83,7 +83,8 @@ main = do
                         let xs = reverse (splitOn "/" bm)
                         in Just (suffixVersion (xs !! 0), xs !! 1)
                     False -> Nothing
-            , selectBenchmarks = \g -> bsort $ map fst (g (ColumnIndex 0))
+            , selectBenchmarks = \g -> bsort $
+                either error (map fst) $ g (ColumnIndex 0)
             , selectGroups = \gs ->
                 let gs' = map fst gs
                     i = intersect (map suffixVersion packages) gs'
@@ -140,7 +141,8 @@ main = do
     report "test/results.csv" Nothing
             cfg { presentation = Groups Absolute
                 , selectBenchmarks = \g ->
-                    map fst $ sortBy (compare `on` snd) (g (ColumnIndex 1))
+                    either error (map fst . sortBy (compare `on` snd))
+                           (g (ColumnIndex 1))
                 }
 
     report "test/results.csv" Nothing
@@ -150,7 +152,8 @@ main = do
     report "test/results.csv" Nothing
             cfg { presentation = Groups PercentDiff
                 , selectBenchmarks = \g ->
-                    map fst $ sortBy (compare `on` snd) (g (ColumnIndex 1))
+                    either error (map fst . sortBy (compare `on` snd))
+                           (g (ColumnIndex 1))
                 }
     report "test/results.csv" Nothing
             cfg { presentation = Groups Diff

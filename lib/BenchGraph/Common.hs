@@ -243,7 +243,9 @@ data Config = Config
     -- column which can be used as a sorting criterion. The output of
     -- 'selectBenchmarks' is a list of benchmarks in the order in which they
     -- are to be rendered.
-    , selectBenchmarks :: (SortColumn -> [(String, Double)]) -> [String]
+    , selectBenchmarks
+        :: (SortColumn -> Either String [(String, Double)])
+        -> [String]
     }
 
 -- | Default configuration. Use this as the base configuration and modify the
@@ -262,7 +264,7 @@ data Config = Config
 --  fieldTicks        = []
 --  classifyBenchmark = Just . ("default",)
 --  selectGroups      = id
---  selectBenchmarks  = \f -> map fst (f (ColumnIndex 0))
+--  selectBenchmarks  = \f -> map fst (fromRight (error "No columns") (f (ColumnIndex 0)))
 -- @
 --
 -- @since 0.2.0
@@ -280,7 +282,7 @@ defaultConfig = Config
     , fieldTicks        = []
     , classifyBenchmark = Just . ("default",)
     , selectGroups      = id
-    , selectBenchmarks  = \f -> map fst (f (ColumnIndex 0))
+    , selectBenchmarks  = \f -> either error (map fst) $ f (ColumnIndex 0)
     }
 
 -------------------------------------------------------------------------------
@@ -591,7 +593,7 @@ selectBenchmarksByField Config{..} matrices columns =
             let len = length columns
             in if len <= 1
                then extractGroup $ ColumnName (Right (name, 0))
-               else error $ "selectBenchmarks: there are " ++ show len
+               else Left $ "selectBenchmarks: there are " ++ show len
                     ++ " runs in the input data, please specify the run \
                     \index [0-" ++ show (len - 1)
                     ++ "] along with the group name."
@@ -613,7 +615,7 @@ selectBenchmarksByField Config{..} matrices columns =
 
     extractColumnByGroupName name runId =
             case findColumnIndex matrices (name, runId) of
-                (_, False) -> error $ "Benchmark group name [" ++ name
+                (_, False) -> Left $ "Benchmark group name [" ++ name
                             ++ "] and index [" ++ show runId
                             ++ "] not found. Available groups are: "
                             ++ show grpNames
@@ -622,9 +624,9 @@ selectBenchmarksByField Config{..} matrices columns =
     extractColumnByGroupIndex idx =
         let len = length columns
         in if idx >= len
-           then error $ "Column index must be in the range [0-"
+           then Left $ "Column index must be in the range [0-"
                 ++ show (len - 1) ++ "]"
-           else columns !! idx
+           else Right $ columns !! idx
 
 selectBenchmarksByGroup :: Config -> GroupMatrix -> [String]
 selectBenchmarksByGroup Config{..} grp@GroupMatrix{..} =
@@ -648,19 +650,19 @@ selectBenchmarksByGroup Config{..} grp@GroupMatrix{..} =
     extractColumnByFieldName name =
         let fields = colNames groupMatrix
         in case elem name fields of
-            False -> error $ "Benchmark field name [" ++ name
+            False -> Left $ "Benchmark field name [" ++ name
                         ++ "] not found in group ["
                         ++ groupName ++ "]. Available fields are: "
                         ++ show fields
-            True -> extractColumnValue name grp estimator
+            True -> Right $ extractColumnValue name grp estimator
 
     extractColumnByFieldIndex idx =
         let fields = colNames groupMatrix
             len = length fields
         in if idx >= len
-           then error $ "Column index must be in the range [0-"
+           then Left $ "Column index must be in the range [0-"
                 ++ show (len - 1) ++ "]"
-           else extractColumnValue (fields !! idx) grp estimator
+           else Right $ extractColumnValue (fields !! idx) grp estimator
 
 type NumberedLines = [(Int, [String])]
 
