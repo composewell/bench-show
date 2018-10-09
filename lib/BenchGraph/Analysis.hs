@@ -127,27 +127,31 @@ outlierVariance
   -> Double -- ^ Number of original iterations.
   -> OutlierVariance
 outlierVariance µ σ a = OutlierVariance effect desc varOutMin
-  where
-    ( effect, desc ) | varOutMin < 0.01 = (Unaffected, "no")
-                     | varOutMin < 0.1  = (Slight,     "slight")
-                     | varOutMin < 0.5  = (Moderate,   "moderate")
-                     | otherwise        = (Severe,     "severe")
-    varOutMin = (minBy varOut 1 (minBy cMax 0 µgMin)) / σb2
-    varOut c  = (ac / a) * (σb2 - ac * σg2) where ac = a - c
-    σb        = σ
-    µa        = µ / a
-    µgMin     = µa / 2
-    σg        = min (µgMin / 4) (σb / sqrt a)
-    σg2       = σg * σg
-    σb2       = σb * σb
-    minBy f q r = min (f q) (f r)
+    where
+    µa    = µ / a
+    µgMin = µa / 2
+    σg2   = σg * σg where σg = min (µgMin / 4) (σ / sqrt a)
+    σ2    = σ * σ
+    varOut c  = (ac / a) * (σ2 - ac * σg2) where ac = a - c
     cMax x    = fromIntegral (floor (-2 * k0 / (k1 + sqrt det)) :: Int)
-      where
-        k1    = σb2 - a * σg2 + ad
+        where
+        ad = a * d
+            where
+            d = k * k
+            k = µa - x
         k0    = -a * ad
-        ad    = a * d
-        d     = k * k where k = µa - x
+        k1    = σ2 - a * σg2 + ad
         det   = k1 * k1 - 4 * σg2 * k0
+
+    minBy f q r = min (f q) (f r)
+    varOutMin = if σ2 == 0
+                then 0
+                else (minBy varOut 1 (minBy cMax 0 µgMin)) / σ2
+
+    (effect, desc) | varOutMin < 0.01 = (Unaffected, "no")
+                   | varOutMin < 0.1  = (Slight,     "slight")
+                   | varOutMin < 0.5  = (Moderate,   "moderate")
+                   | otherwise        = (Severe,     "severe")
 
 -- | Count the total number of outliers in a sample.
 countOutliers :: Outliers -> Int64
