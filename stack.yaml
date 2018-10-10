@@ -5,8 +5,3 @@ extra-deps:
   - Chart-1.9
   - Chart-diagrams-1.9
   - SVGFonts-1.6.0.3
-  - math-functions-0.3.0.2
-  - git: https://github.com/harendra-kumar/statistics
-    commit: d3c4743c28fdd83d578039867f1a046596f77140
-    subdirs:
-    - dense-linear-algebra

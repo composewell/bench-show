@@ -132,10 +132,14 @@ main = do
 
     report "test/results.csvraw" Nothing
             cfg { presentation = Fields }
+
+    -- XXX disabled until a fixed version of statistics is released
+            {-
     report "test/results.csvraw" Nothing
             cfg { presentation = Fields
                 , selectFields = drop 7
                 }
+                -}
 
     -- Multi-group text reports
     report "test/results.csv" Nothing
