@@ -5,9 +5,8 @@ module Main where
 import Data.Ord (comparing)
 import Data.List (sortBy)
 import Data.List.Split (splitOn)
+
 import BenchGraph
-       (defaultConfig, Config(..), Presentation(..), GroupStyle(..),
-        SortColumn(..), graph, report)
 
 main :: IO ()
 main = do
@@ -23,7 +22,6 @@ main = do
     graph "test/results-doc.csv" "docs/grouped"
         defaultConfig
         { classifyBenchmark = classifier }
-
     report "test/results-doc.csv" Nothing
         defaultConfig
         { classifyBenchmark = classifier }
@@ -33,7 +31,6 @@ main = do
         { classifyBenchmark = classifier
         , presentation = Groups Percent
         }
-
     report "test/results-doc.csv" Nothing
         defaultConfig
         { classifyBenchmark = classifier
@@ -45,7 +42,6 @@ main = do
         { classifyBenchmark = classifier
         , presentation = Groups Diff
         }
-
     report "test/results-doc.csv" Nothing
         defaultConfig
         { classifyBenchmark = classifier
@@ -57,11 +53,39 @@ main = do
         { classifyBenchmark = classifier
         , presentation = Groups PercentDiff
         }
-
     report "test/results-doc.csv" Nothing
         defaultConfig
         { classifyBenchmark = classifier
         , presentation = Groups PercentDiff
+        }
+
+    graph "test/results-doc.csv" "docs/grouped-percent-delta"
+        defaultConfig
+        { classifyBenchmark = classifier
+        , presentation = Groups PercentDiff
+        , estimator = Regression
+        }
+    report "test/results-doc.csv" Nothing
+        defaultConfig
+        { classifyBenchmark = classifier
+        , presentation = Groups PercentDiff
+        , estimator = Regression
+        }
+
+    graph "test/results-doc.csv" "docs/grouped-single-estimator"
+        defaultConfig
+        { classifyBenchmark = classifier
+        , presentation = Groups PercentDiff
+        , estimator = Regression
+        , diffStrategy = SingleEstimator
+        }
+    report "test/results-doc.csv" Nothing
+        defaultConfig
+        { classifyBenchmark = classifier
+        , presentation = Groups PercentDiff
+        , estimator = Regression
+        , diffStrategy = SingleEstimator
+        , verbose = True
         }
 
     graph "test/results-doc.csv" "docs/grouped-percent-delta-sorted"
@@ -75,7 +99,6 @@ main = do
                   $ sortBy (comparing snd)
                   $ either error id $ f $ ColumnIndex 1
         }
-
     report "test/results-doc.csv" Nothing
         defaultConfig
         { classifyBenchmark = classifier
@@ -101,7 +124,6 @@ main = do
                   $ sortBy (comparing snd)
                   $ either error id $ f $ ColumnIndex 1
         }
-
     report
         "test/results-doc-multi.csv"
         Nothing

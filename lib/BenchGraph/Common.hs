@@ -18,6 +18,8 @@ module BenchGraph.Common
     , FieldTick (..)
     , SortColumn (..)
     , RelativeUnit (..)
+    , Estimator (..)
+    , DiffStrategy (..)
     , Config(..)
     , defaultConfig
 
@@ -152,15 +154,22 @@ data SortColumn =
         -- benchmark run in the file. When there are multiple runs, a group
         -- needs to specify a @runId@ as well using the 'Right' constructor.
 
+-- | Strategy to compute the difference between two groups of benchmarks being
+-- compared.
+--
+-- @since 0.2.0
 data DiffStrategy =
       SingleEstimator -- ^ Use a single estimator to compute the difference
-                      -- between the baseline and the candidate
-    | MinEstimator    -- ^ Use Mean, Median and Regression estimators for both
-                      -- baseline and candidate and report the estimator that
-                      -- shows the minimum difference. This is more robust
+                      -- between the baseline and the candidate. The estimator
+                      -- that is provided in the 'Config' is used.
+    | MinEstimator    -- ^ Use 'Mean', 'Median' and 'Regression' estimators for
+                      -- both baseline and candidate, and report the estimator
+                      -- that shows the minimum difference. This is more robust
                       -- against random variations.
-    -- | WorstBest
-    -- | BestBest
+    {-
+    | WorstBest
+    | BestBest
+    -}
 
 -- | Configuration governing generation of chart. See 'defaultConfig' for the
 -- default values of these fields.
@@ -168,7 +177,9 @@ data DiffStrategy =
 -- @since 0.2.0
 data Config = Config
     {
-    -- | Provide more details in the report.
+    -- | Provide more details in the report, especially the standard deviation,
+    -- outlier variance, R-square estimate and an annotation to indicate the
+    -- actual method used when using 'MinEstimator' are reported.
       verbose :: Bool
 
     -- | The directory where the output graph or report file should be placed.
@@ -264,7 +275,7 @@ data Config = Config
 --  fieldTicks        = []
 --  classifyBenchmark = Just . ("default",)
 --  selectGroups      = id
---  selectBenchmarks  = \f -> map fst (fromRight (error "No columns") (f (ColumnIndex 0)))
+--  selectBenchmarks  = \f -> either error (map fst) $ f (ColumnIndex 0)
 -- @
 --
 -- @since 0.2.0
@@ -1113,19 +1124,19 @@ prepareFieldsReport cfg@Config{..} outfile group =
               fromMaybe (error "bug") $
                 lookup name (rowValues $ groupMatrix group)
 
-        sortedValues = map getBenchValues benchmarks
-        minValues = map (minimum . map (getAnalyzedValue estimator))
-                        (transpose sortedValues)
+        sortedCols = transpose $ map getBenchValues benchmarks
+        minColValues = map (minimum . map (getAnalyzedValue estimator))
+                           sortedCols
 
         mkColUnits :: [RelativeUnit]
         mkColUnits = map (\(x, v) -> getUnitByFieldName x (getFieldMin cfg v x))
-                         (zip mkColNames minValues)
+                         (zip mkColNames minColValues)
 
         mkColValues :: [[Double]]
         mkColValues =
-            let scale (RelativeUnit _ multiplier) x = x / multiplier
-            in  map (\ys -> zipWith scale mkColUnits ys)
-                    (map (map (getAnalyzedValue estimator)) sortedValues)
+            let scaleCol (RelativeUnit _ multiplier) = map (/ multiplier)
+            in  zipWith scaleCol mkColUnits
+                    (map (map (getAnalyzedValue estimator)) sortedCols)
 
         addUnitLabel name (RelativeUnit label _) =
             if label /= []
@@ -1136,14 +1147,14 @@ prepareFieldsReport cfg@Config{..} outfile group =
         columns = getZipList $ ReportColumn
                 <$> ZipList (withUnits mkColNames)
                 <*> ZipList mkColUnits
-                <*> ZipList (transpose mkColValues)
+                <*> ZipList mkColValues
 
     in RawReport
             { reportOutputFile = outfile
             , reportIdentifier = groupName group
             , reportRowIds     = benchmarks
             , reportColumns    = columns
-            , reportAnalyzed   = sortedValues
+            , reportAnalyzed   = sortedCols
             , reportEstimators = Nothing
             }
 

@@ -254,6 +254,8 @@ data AnalyzedField = AnalyzedField
 
 -- | The statistical estimator used to arrive at a single value for a
 -- benchmark when samples from multiple experiments are available.
+--
+-- @since 0.2.0
 data Estimator =
       Median        -- ^ Report the median, outliers and outlier variance using
                     -- box-plot method. This is the most robust indicator
@@ -267,7 +269,7 @@ data Estimator =
                     -- goodness-of-fit estimate is also reported.  It works
                     -- better when larger number of samples are taken.  This
                     -- cannot be used when the number of samples is less than
-                    -- 3, in that case a mean value is reported instead.
+                    -- 2, in that case a mean value is reported instead.
     deriving (Eq, Show)
 
 getAnalyzedValue :: Estimator -> AnalyzedField -> Double

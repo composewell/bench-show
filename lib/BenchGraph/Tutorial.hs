@@ -27,6 +27,12 @@ module BenchGraph.Tutorial
     -- * Percentage Difference
     -- $percent
 
+    -- * Statistical Estimators
+    -- $estimators
+
+    -- * Difference Strategy
+    -- $diffStrategy
+
     -- * Sorting
     -- $sorting
 
@@ -56,25 +62,29 @@ import BenchGraph
 -- @
 --
 -- If you run the benchmarks again (maybe after a change) the new results are
--- appended to the file. BenchGraph can compare the two or more result sets and
+-- appended to the file. BenchGraph can compare two or more result sets and
 -- compare the results in different ways. We will use the above data for the
--- examples below, you can copy it and paste it in a file to play with it.
+-- examples below, you can copy it and paste it in a file and use that as input
+-- to a BenchGraph application.
 --
 -- @gauge@ supports generating a raw csv file using @--csvraw@ option. The raw
--- csv file has results for all the benchmarking fields e.g. @maxrss@ or
--- @allocated@ and many more.
+-- csv file has results for more benchmarking fields other than time e.g.
+-- @maxrss@ or @allocated@ and many more.
 
 -- $plotting
 --
--- 'report' with 'Fields' presentation style generates a multi-column report.
--- Units of the fields are automatically determined based on the range of
--- values:
+-- The most common usecase is to see the time and peak memory usage of a
+-- program for each benchmark.  The 'report' API with 'Fields' presentation
+-- style generates a multi-column report for a quick overview of all
+-- benchmarks.  Units of the fields are automatically determined based on the
+-- range of values:
 --
 -- @
 -- 'report' "results.csv" Nothing 'defaultConfig' { 'presentation' = 'Fields' }
 -- @
 --
 -- @
+-- (default)(Median)
 -- Benchmark     time(μs) maxrss(MiB)
 -- ------------- -------- -----------
 -- vector/fold     641.62        2.75
@@ -85,16 +95,17 @@ import BenchGraph
 -- streamly/zip    644.33        2.59
 -- @
 --
--- 'graph' generates one bar chart per field:
+-- We can generate equivalent visual report using 'graph', it generates one bar
+-- chart for each column:
 --
 -- @
 -- 'graph' "results.csv" "output" 'defaultConfig'
 -- @
 --
--- When the input file contains results from a single benchmark run, by default
--- all the benchmarks are placed in a single benchmark group named "default".
+-- By default all the benchmarks are placed in a single benchmark group named
+-- @default@.
 --
--- <<full-time.svg Mean Time Full>>
+-- <<full-median-time.svg Median Time Full>>
 --
 
 -- $grouping
@@ -109,9 +120,9 @@ import BenchGraph
 --            _          -> Nothing
 -- @
 --
--- Now we can show the two benchmark groups as separate columns. We can
--- generate reports comparing different benchmark fields (e.g. @time@ and
--- @maxrss@) for all the groups::
+-- Now we can show the two benchmark groups as columns each showing the time
+-- field for that group. We can generate separate reports comparing different
+-- benchmark fields (e.g. @time@ and @maxrss@) for all the groups::
 --
 -- @
 --    'report' "results.csv" Nothing
@@ -119,7 +130,7 @@ import BenchGraph
 -- @
 --
 -- @
--- (time)
+-- (time)(Median)
 -- Benchmark streamly(μs) vector(μs)
 -- --------- ------------ ----------
 -- fold            639.96     641.62
@@ -129,10 +140,10 @@ import BenchGraph
 --
 -- We can do the same graphically as well, just replace 'report' with 'graph'
 -- in the code above.  Each group is placed as a cluster on the graph. Multiple
--- clusters are placed side by side (i.e. on the same scale) for easy
+-- clusters are placed side by side on the same scale for easy
 -- comparison. For example:
 --
--- <<grouped-time.svg Mean Time Grouped>>
+-- <<grouped-median-time.svg Median Time Grouped>>
 
 -- $difference
 --
@@ -148,7 +159,7 @@ import BenchGraph
 -- @
 --
 -- @
--- (time)(Diff from baseline)
+-- (time)(Median)(Diff using min estimator)
 -- Benchmark streamly(μs)(base) vector(μs)(-base)
 -- --------- ------------------ -----------------
 -- fold                  639.96             +1.66
@@ -158,7 +169,7 @@ import BenchGraph
 --
 -- In a chart, the second cluster plots the difference @streamly - vector@.
 --
--- <<grouped-delta-time.svg Mean Time Grouped Delta>>
+-- <<grouped-delta-median-time.svg Median Time Grouped Delta>>
 
 -- $percent
 --
@@ -174,7 +185,7 @@ import BenchGraph
 -- @
 --
 -- @
--- (time)(Diff from baseline)
+-- (time)(Median)(Diff using min estimator)
 -- Benchmark streamly(μs)(base) vector(%)(-base)
 -- --------- ------------------ ----------------
 -- fold                  639.96            +0.26
@@ -184,7 +195,67 @@ import BenchGraph
 --
 -- Graphically:
 --
--- <<grouped-percent-delta-time.svg Mean Time Percent Delta>>
+-- <<grouped-percent-delta-median-time.svg Median Time Percent Delta>>
+
+-- $estimators
+--
+-- When multiple samples are available for each benchmark we report the
+-- 'Median' by default. However, other estimators like 'Mean' and 'Regression'
+-- (a value arrived at by linear regression) can be used:
+--
+-- @
+--    'report' "results.csv" Nothing
+--      'defaultConfig'
+--          { 'classifyBenchmark' = classifier
+--          , 'presentation' = 'Groups' 'PercentDiff'
+--          , 'estimator' = 'Regression'
+--          }
+-- @
+--
+-- @
+-- (time)(Regression Coeff.)(Diff using min estimator)
+-- Benchmark streamly(μs)(base) vector(%)(-base)
+-- --------- ------------------ ----------------
+-- fold                  639.96            +0.26
+-- map                   653.36            -2.22
+-- zip                   644.33            +1.10
+-- @
+--
+-- Graphically:
+--
+-- <<grouped-percent-delta-coeff-time.svg Regression Coeff. Time Percent Delta>>
+
+-- $diffStrategy
+--
+-- A 'DiffStrategy' controls how the difference between two groups being
+-- compared is arrived at. By default we use the 'MinEstimators' strategy which
+-- computes the difference using all the available estimators and takes the
+-- minimum of all. We can use a 'SingleEstimator' strategy instead if we so
+-- desire, it uses the estimatorr configured for the report using the
+-- @estimator@ field of the configuration..
+--
+-- @
+--    'report' "results.csv" Nothing
+--      'defaultConfig'
+--          { 'classifyBenchmark' = classifier
+--          , 'presentation' = 'Groups' 'PercentDiff'
+--          , 'estimator' = 'Regression'
+--          , 'diffStrategy' = 'SingleEstimator'
+--          }
+-- @
+--
+-- @
+-- (time)(Regression Coeff.)(Diff )
+-- Benchmark streamly(μs)(base) vector(%)(-base)
+-- --------- ------------------ ----------------
+-- fold                  639.96            +0.26
+-- map                   653.36            -2.22
+-- zip                   644.33            +1.10
+-- @
+--
+-- Graphically:
+--
+-- <<grouped-single-estimator-coeff-time.svg Single Estimator Time Percent Delta>>
 
 -- $sorting
 --
@@ -203,7 +274,7 @@ import BenchGraph
 -- @
 --
 -- @
--- (time)(Diff from baseline)
+-- (time)(Median)(Diff using min estimator)
 -- Benchmark streamly(μs)(base) vector(%)(-base)
 -- --------- ------------------ ----------------
 -- zip                   644.33            +1.10
@@ -217,7 +288,7 @@ import BenchGraph
 --
 -- Graphically:
 --
--- <<grouped-percent-delta-sorted-time.svg Mean Time Percent Delta>>
+-- <<grouped-percent-delta-sorted-median-time.svg Median Time Percent Delta>>
 
 -- $regression
 --
@@ -252,7 +323,7 @@ import BenchGraph
 -- @
 --
 -- @
--- (time)(Diff from baseline)
+-- (time)(Median)(Diff using min estimator)
 -- Benchmark streamly(0)(μs)(base) streamly(1)(%)(-base)
 -- --------- --------------------- ---------------------
 -- zip                      644.33                +23.28
@@ -265,5 +336,4 @@ import BenchGraph
 --
 -- Graphically:
 --
--- <<regression-percent-descending-time.svg Mean Time Regression>>
---
+-- <<regression-percent-descending-median-time.svg Median Time Regression>>

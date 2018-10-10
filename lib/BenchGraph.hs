@@ -14,7 +14,7 @@
 -- wise textual report comparing the performance of two packages or comparing
 -- the performance regression in a package caused by a particular change.
 -- Absolute or percentage difference between sets of benchmarks can be
--- presented and presentation can be sorted based on the difference. This
+-- presented and sorted based on the difference. This
 -- allows us to easily identify the worst affected benchmarks and fix them. The
 -- presentation is quite flexible and a lot more interesting things can be done
 -- with it.
@@ -33,12 +33,13 @@
 -- @time@ or @maxrss@. When we say @group@ it means a group of benchmarks. An
 -- input file may have benchmark results collected from multiple runs.  By
 -- default each run is designated as a single benchmark group with the group
--- name as "default". Benchmark groups from different runs are distinguished
+-- name @default@. Benchmark groups from different runs are distinguished
 -- using a @runId@ which is the index of the run in the file, starting with 0.
 --
 -- Benchmarks can be classified into multiple groups using 'classifyBenchmark'.
 -- Benchmarks from each run can be divided into multiple groups. In a multi-run
--- input benchmark groups can be fully specified using the groupname and the
+-- input benchmark groups can be fully specified using the groupname (either
+-- @default@ or as classified by 'classifyBenchmark') and the
 -- runId.
 --
 -- = Presentation
@@ -84,8 +85,10 @@
 module BenchGraph
     ( GroupStyle(..)
     , Presentation(..)
-    , FieldTick (..)
+    , Estimator (..)
+    , DiffStrategy (..)
     , SortColumn (..)
+    , FieldTick (..)
     , Config(..)
     , defaultConfig
     , graph
