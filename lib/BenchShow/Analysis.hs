@@ -7,7 +7,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
--- Module      : BenchGraph.Analysis
+-- Module      : BenchShow.Analysis
 -- Copyright   : (c) 2009-2014 Bryan O'Sullivan
 --               (c) 2018 Composewell Technologies
 --
@@ -16,7 +16,7 @@
 -- Stability   : experimental
 -- Portability : GHC
 
-module BenchGraph.Analysis
+module BenchShow.Analysis
     ( OutlierEffect(..)
     , OutlierVariance(..)
     , countOutliers

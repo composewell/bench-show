@@ -2,7 +2,10 @@
 
 ### Breaking Changes
 
-* `bgraph` has been removed and replaced by `graph`
+* The package `bench-graph` has been renamed to `bench-show` to reflect the
+  fact that it now includes text reports as well. This includes the change of
+  module name `BenchGraph` to `BenchShow`.
+* The `bgraph` API has been removed and replaced by `graph`
 * The way output file is generated has changed. Now field name or group name
   being plotted or both may be suffixed to the output file name automatically.
   The estimator type (e.g. mean or median) is also suffixed to the filename.

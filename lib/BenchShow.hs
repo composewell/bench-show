@@ -1,5 +1,5 @@
 -- |
--- Module      : BenchGraph
+-- Module      : BenchShow
 -- Copyright   : (c) 2017 Composewell Technologies
 --
 -- License     : BSD3
@@ -7,7 +7,7 @@
 -- Stability   : experimental
 -- Portability : GHC
 --
--- BenchGraph provides a DSL to quickly generate visual graphs or textual
+-- BenchShow provides a DSL to quickly generate visual graphs or textual
 -- reports from benchmarking results file (CSV) produced by @gauge@ or
 -- @criterion@.  Reports or graphs can be formatted and presented in many
 -- useful ways. For example, we can prepare a graphical bar chart or column
@@ -70,19 +70,19 @@
 -- = Mean and Max
 --
 -- In a raw benchmark file (@--csvraw=results.csv@ with @gauge@) we may have
--- data for multiple iterations of each benchmark. BenchGraph combines results
+-- data for multiple iterations of each benchmark. BenchShow combines results
 -- of all iterations depending on the field type. For example if the field is
 -- @time@ it takes the mean of all iterations and if the field is @maxrss@ it
 -- takes the maximum of all iterations.
 --
 -- = Tutorial and Examples
 --
--- See the tutorial module "BenchGraph.Tutorial" for sample charts and a
+-- See the tutorial module "BenchShow.Tutorial" for sample charts and a
 -- comprehensive guide to generating reports and graphs.  See the @test@
 -- directory for many usage examples, run the tests to see the charts generated
 -- by these tests.
 
-module BenchGraph
+module BenchShow
     ( GroupStyle(..)
     , Presentation(..)
     , Estimator (..)
@@ -95,6 +95,6 @@ module BenchGraph
     , report
     ) where
 
-import BenchGraph.Common
-import BenchGraph.Graph
-import BenchGraph.Report
+import BenchShow.Common
+import BenchShow.Graph
+import BenchShow.Report

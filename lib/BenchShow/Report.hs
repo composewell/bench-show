@@ -1,5 +1,5 @@
 -- |
--- Module      : BenchGraph.Report
+-- Module      : BenchShow.Report
 -- Copyright   : (c) 2018 Composewell Technologies
 --
 -- License     : BSD3
@@ -12,7 +12,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
 
-module BenchGraph.Report
+module BenchShow.Report
     (
       report
     ) where
@@ -24,8 +24,8 @@ import Statistics.Types (Estimate(..))
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 import Text.Printf (printf)
 
-import BenchGraph.Common
-import BenchGraph.Analysis
+import BenchShow.Common
+import BenchShow.Analysis
 
 -- XXX in comparative reports render lower than baseline in green and higher
 -- than baseline in red

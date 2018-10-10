@@ -1,5 +1,5 @@
 -- |
--- Module      : BenchGraph.Common
+-- Module      : BenchShow.Common
 -- Copyright   : (c) 2018 Composewell Technologies
 --
 -- License     : BSD3
@@ -12,7 +12,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
 
-module BenchGraph.Common
+module BenchShow.Common
     ( Presentation(..)
     , GroupStyle(..)
     , FieldTick (..)
@@ -58,7 +58,7 @@ import System.FilePath ((</>))
 import Text.CSV (CSV, parseCSVFromFile)
 import Text.Read (readMaybe)
 
-import BenchGraph.Analysis
+import BenchShow.Analysis
 
 -------------------------------------------------------------------------------
 -- Utilities

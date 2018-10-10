@@ -1,4 +1,4 @@
-name:               bench-graph
+name:               bench-show
 version:            0.2.0
 synopsis:           Generate reports and charts comparing benchmarks
 description:
@@ -11,7 +11,7 @@ description:
   as a percentage; we can sort the results by percentage change to get the
   worst affected benchmarks.
   .
-  @bench-graph@ helps us in answering questions like the following, visually or
+  @bench-show@ helps us in answering questions like the following, visually or
   textually:
   .
   * Across two benchmark runs, show all the operations that resulted in a
@@ -21,11 +21,11 @@ description:
     the operations where the performance differs by more than 10%, so that we
     can critically analyze the packages and choose the right one.
   .
-  See the README and the "BenchGraph.Tutorial" module for comprehensive
+  See the README and the "BenchShow.Tutorial" module for comprehensive
   documentation.
 
-homepage:            https://github.com/composewell/bench-graph
-bug-reports:         https://github.com/composewell/bench-graph/issues
+homepage:            https://github.com/composewell/bench-show
+bug-reports:         https://github.com/composewell/bench-show/issues
 license:             BSD3
 license-file:        LICENSE
 tested-with:           GHC==8.4.3
@@ -59,16 +59,16 @@ extra-source-files:
 
 source-repository head
     type: git
-    location: https://github.com/composewell/bench-graph
+    location: https://github.com/composewell/bench-show
 
 library
     hs-source-dirs:   lib
-    exposed-modules:  BenchGraph
-                    , BenchGraph.Tutorial
-    other-modules:    BenchGraph.Analysis
-                    , BenchGraph.Common
-                    , BenchGraph.Graph
-                    , BenchGraph.Report
+    exposed-modules:  BenchShow
+                    , BenchShow.Tutorial
+    other-modules:    BenchShow.Analysis
+                    , BenchShow.Common
+                    , BenchShow.Graph
+                    , BenchShow.Report
     default-language: Haskell2010
     default-extensions:
         OverloadedStrings
@@ -99,8 +99,8 @@ test-suite test
     ghc-options: -Wall
 
     build-depends:
-          base              >= 4.8 && < 5
-        , bench-graph
+          bench-show
+        , base              >= 4.8 && < 5
         , split             >= 0.2     && < 0.3
         , text              >= 1.1.1   && < 1.3
         -- , typed-process     >= 0.1.0.0 && < 0.3
@@ -116,6 +116,6 @@ test-suite doc
     ghc-options: -Wall
 
     build-depends:
-          base              >= 4.8 && < 5
-        , bench-graph
-        , split             >= 0.2     && < 0.3
+          bench-show
+        , base              >= 4.8 && < 5
+        , split             >= 0.2 && < 0.3

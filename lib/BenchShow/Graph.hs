@@ -1,5 +1,5 @@
 -- |
--- Module      : BenchGraph.Graph
+-- Module      : BenchShow.Graph
 -- Copyright   : (c) 2018 Composewell Technologies
 --
 -- License     : BSD3
@@ -12,7 +12,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
 
-module BenchGraph.Graph
+module BenchShow.Graph
     (
       graph
     ) where
@@ -25,7 +25,7 @@ import Data.Maybe (fromMaybe)
 import Graphics.Rendering.Chart.Easy
 import Graphics.Rendering.Chart.Backend.Diagrams
 
-import BenchGraph.Common
+import BenchShow.Common
 
 -------------------------------------------------------------------------------
 -- Benchmarking field specific handling

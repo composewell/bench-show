@@ -6,7 +6,7 @@ import Data.Ord (comparing)
 import Data.List (sortBy)
 import Data.List.Split (splitOn)
 
-import BenchGraph
+import BenchShow
 
 main :: IO ()
 main = do

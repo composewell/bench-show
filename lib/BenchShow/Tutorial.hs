@@ -1,16 +1,16 @@
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
 -- |
--- Module      : BenchGraph.Tutorial
+-- Module      : BenchShow.Tutorial
 -- Copyright   : (c) 2018 Composewell Technologies
 --
 -- License     : BSD3
 -- Maintainer  : harendra.kumar@gmail.com
 --
--- BenchGraph generates text reports and graphs from benchmarking results. It
+-- BenchShow generates text reports and graphs from benchmarking results. It
 -- is very flexible and allows you to manipulate the benchmarking data to
 -- present it in many useful ways.
 
-module BenchGraph.Tutorial
+module BenchShow.Tutorial
     (
     -- * Generating benchmark results
     -- $generating
@@ -41,7 +41,7 @@ module BenchGraph.Tutorial
     )
 where
 
-import BenchGraph
+import BenchShow
 
 -- $generating
 --
@@ -62,10 +62,10 @@ import BenchGraph
 -- @
 --
 -- If you run the benchmarks again (maybe after a change) the new results are
--- appended to the file. BenchGraph can compare two or more result sets and
+-- appended to the file. BenchShow can compare two or more result sets and
 -- compare the results in different ways. We will use the above data for the
 -- examples below, you can copy it and paste it in a file and use that as input
--- to a BenchGraph application.
+-- to a BenchShow application.
 --
 -- @gauge@ supports generating a raw csv file using @--csvraw@ option. The raw
 -- csv file has results for more benchmarking fields other than time e.g.

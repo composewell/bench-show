@@ -7,9 +7,7 @@ import Data.List
 import Data.List.Split (splitOn)
 -- import Data.Maybe (catMaybes)
 -- import System.Process.Typed (readProcess_)
-import BenchGraph
-       (defaultConfig, Config(..), Presentation(..), GroupStyle(..),
-        FieldTick(..), SortColumn(..), graph, report)
+import BenchShow
 
 -- import qualified Data.Text.Lazy as T
 -- import qualified Data.Text.Lazy.Encoding as T
