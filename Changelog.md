@@ -4,7 +4,8 @@
 
 * `bgraph` has been removed and replaced by `graph`
 * The way output file is generated has changed. Now field name or group name
-  being plotted or both may be suffixed to the output file name automatically
+  being plotted or both may be suffixed to the output file name automatically.
+  The estimator type (e.g. mean or median) is also suffixed to the filename.
 * Changes to `Config` record:
     * `chartTitle` field has been renamed to `title`.
     * The type of `outputDir` is now a `Maybe`.
@@ -12,7 +13,8 @@
     * `ComparisonStyle` has been replaced by `Presentation`
     * `sortBenchmarks` has been replaced by `selectBenchmarks`. The new
       function can be defined as follows in terms of an older definition:
-        `selectBenchmarks = \g -> sortBenchmarks $ map fst (g (Index 0))`
+        `selectBenchmarks = \g ->
+            sortBenchmarks $ either error (map fst) $ f (ColumnIndex 0)`
     * `sortBenchGroups` has been replaced by `selectGroups`
     * `setYScale` field has been broken down into two fields `fieldRanges` and
       `fieldTicks`. Now you also need to specify which fields' scale
@@ -20,7 +22,7 @@
 
 ### Enhancements
 
-* `report` has been added to generate textual reports
+* A `report` API has been added to generate textual reports
 * More ways to compare groups have been added, including percent and percent
   difference
 * Now we can show multiple fields as columns in a single benchmark group report
@@ -30,6 +32,7 @@
     their presentation order.
   * `selectBenchmarks` can now sort the results based on values corresponding to
     any field or benchmark group.
+  * new fields added: `diffStrategy`, `verbose`, `estimator`, `threshold`
 
 ## 0.1.4
 
