@@ -7,8 +7,8 @@
 -- Maintainer  : harendra.kumar@gmail.com
 --
 -- BenchShow generates text reports and graphs from benchmarking results. It
--- is very flexible and allows you to manipulate the benchmarking data to
--- present it in many useful ways.
+-- allows you to manipulate the format of the report and the benchmarking data
+-- to present it in many useful ways.
 
 module BenchShow.Tutorial
     (
@@ -68,7 +68,7 @@ import BenchShow
 -- to a BenchShow application.
 --
 -- @gauge@ supports generating a raw csv file using @--csvraw@ option. The raw
--- csv file has results for more benchmarking fields other than time e.g.
+-- csv file has results for many more benchmarking fields other than time e.g.
 -- @maxrss@ or @allocated@ and many more.
 
 -- $plotting
@@ -268,8 +268,10 @@ import BenchShow
 --          { 'classifyBenchmark' = classifier
 --          , 'presentation' = 'Groups' 'PercentDiff'
 --          , 'selectBenchmarks' = \f ->
---               reverse $ map fst $
---               sortBy (comparing snd) $ f $ 'ColumnIndex' 1
+--                     reverse
+--                   $ map fst
+--                   $ sortBy (comparing snd)
+--                   $ either error id $ f $ 'ColumnIndex' 1
 --          }
 -- @
 --
@@ -317,8 +319,10 @@ import BenchShow
 --          { 'classifyBenchmark' = classifier
 --          , 'presentation' = 'Groups' 'PercentDiff'
 --          , 'selectBenchmarks' = \f ->
---               reverse $ map fst $
---               sortBy (comparing snd) $ f $ 'ColumnIndex' 1
+--                     reverse
+--                   $ map fst
+--                   $ sortBy (comparing snd)
+--                   $ either error id $ f $ 'ColumnIndex' 1
 --          }
 -- @
 --

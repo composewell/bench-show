@@ -1,5 +1,11 @@
 ## 0.2.0
 
+### Release Notes
+
+* Due to a bug in the `statistics` package, reporting may crash on certain
+  inputs with a `vector index out of bounds` message. The bug has been fixed
+  and will be available in an upcoming release.
+
 ### Breaking Changes
 
 * The package `bench-graph` has been renamed to `bench-show` to reflect the

@@ -133,7 +133,7 @@ data Presentation =
 data FieldTick =
       TickSize Int  -- ^ Size of a tick, the unit is microseconds for time
                      -- fields, and bytes for space fields.
-    | TickCount Int -- ^ Total number of ticks in the range spread
+    | TickCount Int -- ^ Total number of ticks in the range spread.
 
 -- | When sorting and filtering the benchmarks using 'selectBenchmarks' we can
 -- choose a column as a sort criterion.  'selectBenchmarks' is provided with
@@ -143,17 +143,20 @@ data FieldTick =
 --
 -- @since 0.2.0
 data SortColumn =
-      ColumnIndex Int -- ^ Specify the index of the sort column. Note that only
-        -- fields' or groups' columns are considered. In a textual report
-        -- presentation the first column shown is benchmark names and the rest
-        -- of the columns are fields or group columns. Therefore, an index 0
-        -- actually addresses the second column shown by the textual report.
+      ColumnIndex Int -- ^ Specify the index of the sort column. Index 0
+        -- corresponds to the first @value@ column. In a textual report, the
+        -- very first column consists of benchmark names, therefore index 0
+        -- addresses the second column of the report.
     | ColumnName (Either String (String, Int)) -- ^ Specify the column using
-        -- the name of the group or the field it represents. A field name can
-        -- always be specified using just the name with 'Left' constructor. A
-        -- group can be specified with just the name when there is a single
-        -- benchmark run in the file. When there are multiple runs, a group
-        -- needs to specify a @runId@ as well using the 'Right' constructor.
+        -- the name of the group or the field it represents, and the @runId@.
+        -- When just the name is enough to uniquely identify the sort column
+        -- the 'Left' constructor can be used, otherwise the 'Right'
+        -- constructor is used which can use the @runId@ to disambiguate.  In a
+        -- 'Fields' presentation, just the field name is enough.  In a 'Groups'
+        -- presentation, when there is a single benchmark run in the input
+        -- file, just the group name is enough to identify the group, the
+        -- @runId@ defaults to 0.  However, when there are multiple runs, a
+        -- group needs to specify a @runId@ as well.
 
 -- | Strategy to compute the difference between two groups of benchmarks being
 -- compared.
@@ -238,7 +241,7 @@ data Config = Config
 
     -- | Filter and reorder the benchmark group names. A benchmark group may be
     -- assigned using 'classifyBenchmark'; when not assigned, all benchmarks
-    -- are placed in the @default@ group. The input to this function is alist
+    -- are placed in the @default@ group. The input to this function is a list
     -- of tuples with benchmark group names and the @runId@s.  The output
     -- produced by this function is a filtered and reordered subset of the
     -- input.  Only those benchmark groups present in the output are rendered

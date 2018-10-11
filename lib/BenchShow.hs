@@ -1,6 +1,6 @@
 -- |
 -- Module      : BenchShow
--- Copyright   : (c) 2017 Composewell Technologies
+-- Copyright   : (c) 2017-18 Composewell Technologies
 --
 -- License     : BSD3
 -- Maintainer  : harendra.kumar@gmail.com
@@ -91,8 +91,8 @@ module BenchShow
     , FieldTick (..)
     , Config(..)
     , defaultConfig
-    , graph
     , report
+    , graph
     ) where
 
 import BenchShow.Common

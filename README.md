@@ -22,6 +22,19 @@ textually:
   operations where the performance differs by more than 10%, so that we can
   critically analyze the packages and choose the right one.
 
+## Quick Start
+
+Use `gauge` or `criterion` to generate a `results.csv` file, and then use the
+following code to generate a textual report or a graph:
+
+```
+report "results.csv"  Nothing defaultConfig
+graph  "results.csv" "output" defaultConfig
+```
+
+For advanced usage, control the generated report by modifying the
+`defaultConfig`.
+
 ## Reports and Charts
 
 `report` with `Fields` presentation style generates a multi-column report.  We
@@ -33,7 +46,7 @@ report "results.csv" Nothing defaultConfig { presentation = Fields }
 ```
 
 ```
-Benchmark     time(us) maxrss(MiB)
+Benchmark     time(μs) maxrss(MiB)
 ------------- -------- -----------
 vector/fold     641.62        2.75
 streamly/fold   639.96        2.75
@@ -45,9 +58,9 @@ streamly/zip    644.33        2.59
 
 `graph` generates one bar chart per field:
 
-``
+```
 graph "results.csv" "output" defaultConfig
-``
+```
 
 When the input file contains results from a single benchmark run, by default
 all the benchmarks are placed in a single benchmark group named "default".
@@ -76,12 +89,12 @@ generate reports comparing different benchmark fields (e.g. `time` and
 ```
 
 ```
-(time)(us)
-Benchmark streamly vector
---------- -------- ------
-fold        639.96 641.62
-map         653.36 638.89
-zip         644.33 651.42
+(time)(Median)
+Benchmark streamly(μs) vector(μs)
+--------- ------------ ----------
+fold            639.96     641.62
+map             653.36     638.89
+zip             644.33     651.42
 ```
 
 We can do the same graphically as well, just replace `report` with `graph`
@@ -106,22 +119,24 @@ follows:
          { classifyBenchmark = classifier
          , presentation = Groups PercentDiff
          , selectBenchmarks = \f ->
-              reverse $ map fst $
-              sortBy (comparing snd) $ f $ ColumnIndex 1
+              reverse
+              $ map fst
+              $ sortBy (comparing snd)
+              $ either error id $ f $ ColumnIndex 1
          }
 ```
 
 ```
-(time)(%)(Diff from baseline)
-Benchmark streamly(0)(base) streamly(1)(-base)
---------- ----------------- ------------------
-zip                  100.00             +23.28
-map                  100.00              +7.65
-fold                 100.00             -15.63
+(time)(Median)(Diff using min estimator)
+Benchmark streamly(0)(μs)(base) streamly(1)(%)(-base)
+--------- --------------------- ---------------------
+zip                      644.33                +23.28
+map                      653.36                 +7.65
+fold                     639.96                -15.63
 ```
 
 It tells us that in the second run the worst affected benchmark is zip
-taking 23.28 percent more time comapred to the baseline.
+taking 23.28 percent more time compared to the baseline.
 
 Graphically:
 
@@ -135,6 +150,13 @@ Graphically:
 
 ## Contributions and Feedback
 
-Contributions are welcome! Any feedback on improvements is welcome. Please
-raise an issue for anything you want to suggest or discuss or send a PR for any
-change that you would like make.
+Contributions are welcome! Please see the [TODO.md](TODO.md) file or the
+existing [issues](https://github.com/composewell/bench-show/issues) if you want
+to pick up something to work on.
+
+Any feedback on improvements or the direction of the package is welcome. You
+can always send an email to the
+[maintainer](https://github.com/composewell/bench-show/blob/master/bench-show.cabal)
+or [raise an issue](https://github.com/composewell/bench-show/issues/new) for
+anything you want to suggest or discuss, or send a PR for any change that you
+would like to make.

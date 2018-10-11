@@ -167,12 +167,13 @@ genGroupReport RawReport{..} cfg@Config{..} = do
 
 -- | Presents the benchmark results in a CSV input file as text reports
 -- according to the provided configuration.  The first parameter is the input
--- file name, the second parameter is the name prefix for the output SVG image
--- file(s). One or more output files may be generated depending on the
--- 'Presentation' setting.  When the second parameter is 'Nothing' the reports
--- are printed on the console. The last parameter is the configuration to
--- customize the report, you can start with 'defaultConfig' as the base and
--- override any of the fields that you may want to change.
+-- file name. The second parameter, when specified using 'Just', is the name
+-- prefix for the output SVG image file(s). One or more output files may be
+-- generated with the given prefix depending on the 'Presentation' setting.
+-- When the second parameter is 'Nothing' the reports are printed on the
+-- console. The last parameter is the configuration to customize the report,
+-- you can start with 'defaultConfig' as the base and override any of the
+-- fields that you may want to change.
 --
 -- For example:
 --
