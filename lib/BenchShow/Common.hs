@@ -47,7 +47,8 @@ import Data.Char (toLower)
 import Data.Foldable (foldl')
 import Data.Function ((&), on)
 import Data.List
-       (transpose, groupBy, (\\), find, sortBy, elemIndex, intersectBy)
+       (transpose, groupBy, (\\), find, sortBy, elemIndex, intersect,
+        intersectBy)
 import Data.List.Split (linesBy)
 import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Ord (comparing)
@@ -401,7 +402,7 @@ cmpTransformColumns rtype style estimator diffStrategy cols =
             let firstCol = head columns
                 colTransform col =
                     let mkDiff (n1, v1) (n2,v2) =
-                            assert (n1 == n2) (n2, diff v1 v2)
+                            verify (n1 == n2) (n2, diff v1 v2)
                     in zipWith mkDiff firstCol col
             in map colTransform (tail columns)
 
@@ -441,11 +442,12 @@ cmpTransformColumns rtype style estimator diffStrategy cols =
                     SingleEstimator ->
                        (Nothing, baseCol : cmpWith percentDiff)
     where
+        verify a b = if a then b else error "bug: benchmark names mismatch"
         transformVals = map (map (second (getAnalyzedValue estimator)))
         columns = transformVals cols
 
         -- Find which estimator gives us the minimum diff
-        mkMinDiff diff (n1, v1) (n2,v2) = assert (n1 == n2) $
+        mkMinDiff diff (n1, v1) (n2,v2) = verify (n1 == n2) $
             let meanDiff = diff (getAnalyzedValue Mean v1)
                                 (getAnalyzedValue Mean v2)
                 medDiff = diff (getAnalyzedValue Median v1)
@@ -920,12 +922,37 @@ _filterCommonSubsets matrices =
                                 $ zipWith3 cmpPred pcols row1 x) xs
         in assert (name1 == name2) $ (name1, mapMaybe isect preds1)
 
-    isectCommonPreds preds BenchmarkIterMatrix{..} =
-        BenchmarkIterMatrix
-            { iterPredColNames = iterPredColNames
-            , iterRespColNames = iterRespColNames
-            , iterRowValues = zipWith isectRows preds iterRowValues
+    isectCommonPreds preds matrix@BenchmarkIterMatrix{..} =
+        matrix
+            { iterRowValues = zipWith isectRows preds iterRowValues
             }
+
+-- when comparing make sure all groups have same benchmarks and sort the other
+-- ones based on the first column so that they are all in the same order.
+selectCommon :: [GroupMatrix] -> IO [GroupMatrix]
+selectCommon matrices =
+    let commonBenches =
+            let initBenches = map fst $ groupBenches $ head matrices
+            in foldl' intersectBenches initBenches (tail matrices)
+    in mapM (isectCommonBenches commonBenches) matrices
+
+    where
+
+    intersectBenches benches matrix =
+        intersect benches (map fst $ groupBenches matrix)
+
+    isectCommonBenches benches matrix@GroupMatrix{..} = do
+        let absent = map fst groupBenches \\ benches
+            msg =
+                "Removing exclusive benchmarks " ++ show absent
+                ++ " from column [" ++ groupName
+                ++ "] run id [" ++ show groupIndex
+            lookupBench x = lookup x groupBenches
+            findBench x = (x, fromMaybe undefined (lookupBench x))
+            newBenches = map findBench benches
+
+        unless (null absent) $ putStrLn msg
+        return matrix { groupBenches = newBenches }
 
 prepareGroupMatrices :: Config -> CSV -> [String] -> IO (Int, [GroupMatrix])
 prepareGroupMatrices cfg@Config{..} csvlines fields = do
@@ -943,6 +970,7 @@ prepareGroupMatrices cfg@Config{..} csvlines fields = do
         & map (splitGroup classifyBenchmark)
         & concat
         & sortGroups cfg
+        >>= selectCommon
         >>= filterGroupBenchmarks
         >>= return . (length runs,)
 
@@ -1015,7 +1043,6 @@ prepareGroupsReport cfg@Config{..} style outfile rtype runs field matrices =
 
         unsortedCols = map (extractColumn field) matrices
 
-        -- XXX for the auto estimator we need to try all and choose the best
         (estimators, transformedCols) =
             cmpTransformColumns rtype style estimator diffStrategy unsortedCols
         benchmarks = selectBenchmarksByField cfg matrices transformedCols

@@ -373,15 +373,13 @@ foldBenchmark BenchmarkIterMatrix{..} = do
 -- take top samples
 -- XXX take equivalent iterations across multiple groups
 filterSamples :: BenchmarkIterMatrix -> BenchmarkIterMatrix
-filterSamples BenchmarkIterMatrix{..} =
-    BenchmarkIterMatrix
-        { iterPredColNames = iterPredColNames
-        , iterRespColNames = iterRespColNames
-        , iterRowValues = iterRowValues
-        -- , iterRowValues = map filterIters iterRowValues
+filterSamples matrix@BenchmarkIterMatrix{..} =
+    matrix
+        {-
+        {
+          iterRowValues = map filterIters iterRowValues
         }
 
-        {-
     where
 
     iterIndex = fromMaybe undefined
