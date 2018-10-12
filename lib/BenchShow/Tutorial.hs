@@ -105,7 +105,7 @@ import BenchShow
 -- By default all the benchmarks are placed in a single benchmark group named
 -- @default@.
 --
--- <<full-median-time.svg Median Time Full>>
+-- <<docs/full-median-time.svg Median Time Full>>
 --
 
 -- $grouping
@@ -143,7 +143,7 @@ import BenchShow
 -- clusters are placed side by side on the same scale for easy
 -- comparison. For example:
 --
--- <<grouped-median-time.svg Median Time Grouped>>
+-- <<docs/grouped-median-time.svg Median Time Grouped>>
 
 -- $difference
 --
@@ -169,7 +169,7 @@ import BenchShow
 --
 -- In a chart, the second cluster plots the difference @streamly - vector@.
 --
--- <<grouped-delta-median-time.svg Median Time Grouped Delta>>
+-- <<docs/grouped-delta-median-time.svg Median Time Grouped Delta>>
 
 -- $percent
 --
@@ -195,7 +195,7 @@ import BenchShow
 --
 -- Graphically:
 --
--- <<grouped-percent-delta-median-time.svg Median Time Percent Delta>>
+-- <<docs/grouped-percent-delta-median-time.svg Median Time Percent Delta>>
 
 -- $estimators
 --
@@ -223,7 +223,7 @@ import BenchShow
 --
 -- Graphically:
 --
--- <<grouped-percent-delta-coeff-time.svg Regression Coeff. Time Percent Delta>>
+-- <<docs/grouped-percent-delta-coeff-time.svg Regression Coeff. Time Percent Delta>>
 
 -- $diffStrategy
 --
@@ -255,7 +255,7 @@ import BenchShow
 --
 -- Graphically:
 --
--- <<grouped-single-estimator-coeff-time.svg Single Estimator Time Percent Delta>>
+-- <<docs/grouped-single-estimator-coeff-time.svg Single Estimator Time Percent Delta>>
 
 -- $sorting
 --
@@ -290,7 +290,7 @@ import BenchShow
 --
 -- Graphically:
 --
--- <<grouped-percent-delta-sorted-median-time.svg Median Time Percent Delta>>
+-- <<docs/grouped-percent-delta-sorted-median-time.svg Median Time Percent Delta>>
 
 -- $regression
 --
@@ -340,4 +340,4 @@ import BenchShow
 --
 -- Graphically:
 --
--- <<regression-percent-descending-median-time.svg Median Time Regression>>
+-- <<docs/regression-percent-descending-median-time.svg Median Time Regression>>

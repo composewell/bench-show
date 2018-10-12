@@ -47,7 +47,7 @@ description:
   .
   To show the same graphically:
   .
-  <<https://hackage.haskell.org/package/bench-show-0.2.0/docs/regression-percent-descending-median-time.png>>
+  <<docs/regression-percent-descending-median-time.svg>>
   .
   See the README and the "BenchShow.Tutorial" module for comprehensive
   documentation.
@@ -61,7 +61,7 @@ tested-with:           GHC==8.4.3
 copyright:           2017, 2018 Composewell Technologies
 stability:           Experimental
 build-type:          Simple
-cabal-version:       >= 1.10
+cabal-version:       1.18
 
 extra-source-files:
     Changelog.md
@@ -72,6 +72,7 @@ extra-source-files:
     test/results.csvraw
     test/results-doc.csv
     test/results-doc-multi.csv
+
     docs/full-median-time.svg
     docs/grouped-median-time.svg
     docs/grouped-delta-median-time.svg
@@ -80,7 +81,16 @@ extra-source-files:
     docs/grouped-percent-delta-sorted-median-time.svg
     docs/grouped-single-estimator-coeff-time.svg
     docs/regression-percent-descending-median-time.svg
-    docs/regression-percent-descending-median-time.png
+
+extra-doc-files:
+    docs/full-median-time.svg
+    docs/grouped-median-time.svg
+    docs/grouped-delta-median-time.svg
+    docs/grouped-percent-delta-coeff-time.svg
+    docs/grouped-percent-delta-median-time.svg
+    docs/grouped-percent-delta-sorted-median-time.svg
+    docs/grouped-single-estimator-coeff-time.svg
+    docs/regression-percent-descending-median-time.svg
 
 source-repository head
     type: git
