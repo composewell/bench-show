@@ -120,7 +120,7 @@ library
         , transformers      >= 0.4     && < 0.6
         , ansi-wl-pprint    >= 0.6     && < 0.7
         , split             >= 0.2     && < 0.3
-        , statistics        >= 0.14    && < 0.16
+        , statistics        >= 0.15    && < 0.16
         , vector            >= 0.10    && < 0.13
 
 test-suite test

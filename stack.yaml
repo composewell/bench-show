@@ -5,3 +5,6 @@ extra-deps:
   - Chart-1.9
   - Chart-diagrams-1.9
   - SVGFonts-1.6.0.3
+  - statistics-0.15.0.0
+  - math-functions-0.3.0.2
+  - dense-linear-algebra-0.1.0.0
