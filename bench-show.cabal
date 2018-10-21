@@ -47,7 +47,7 @@ description:
   .
   To show the same graphically:
   .
-  <<docs/regression-percent-descending-median-time.svg>>
+  <<src/docs/regression-percent-descending-median-time.svg>>
   .
   See the README and the "BenchShow.Tutorial" module for comprehensive
   documentation.
