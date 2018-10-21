@@ -1,3 +1,7 @@
+## 0.2.1
+
+* Use new version of `statistics` package.
+
 ## 0.2.0
 
 ### Release Notes
