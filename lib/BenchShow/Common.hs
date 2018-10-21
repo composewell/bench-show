@@ -947,9 +947,9 @@ selectCommon matrices =
     isectCommonBenches benches matrix@GroupMatrix{..} = do
         let absent = map fst groupBenches \\ benches
             msg =
-                "Removing exclusive benchmarks " ++ show absent
+                "Removing benchmarks " ++ show absent
                 ++ " from column [" ++ groupName
-                ++ "] run id [" ++ show groupIndex
+                ++ "] run id [" ++ show groupIndex ++ "]"
             lookupBench x = lookup x groupBenches
             findBench x = (x, fromMaybe undefined (lookupBench x))
             newBenches = map findBench benches
