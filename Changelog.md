@@ -1,3 +1,8 @@
+## Unreleased
+
+* Allow additional annotations to title to be controlled via config
+* Better error handling
+
 ## 0.2.1
 
 * Use new version of `statistics` package.

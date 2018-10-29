@@ -20,6 +20,7 @@ module BenchShow.Common
     , RelativeUnit (..)
     , Estimator (..)
     , DiffStrategy (..)
+    , TitleAnnotation (..)
     , Config(..)
     , defaultConfig
 
@@ -48,7 +49,7 @@ import Data.Foldable (foldl')
 import Data.Function ((&), on)
 import Data.List
        (transpose, groupBy, (\\), find, sortBy, elemIndex, intersect,
-        intersectBy)
+        intersectBy, concatMap)
 import Data.List.Split (linesBy)
 import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Ord (comparing)
@@ -175,6 +176,11 @@ data DiffStrategy =
     | BestBest
     -}
 
+-- | Additional annotations that can be optionally added to the title of the
+-- report or graph.
+data TitleAnnotation = TitleField | TitleEstimator | TitleDiff
+    deriving (Eq, Show)
+
 -- | Configuration governing generation of chart. See 'defaultConfig' for the
 -- default values of these fields.
 --
@@ -192,6 +198,9 @@ data Config = Config
     -- | Report title, more information like the plotted field name or
     -- the presentation style may be added to it.
     , title  :: Maybe String
+
+    -- | Additional annotations to be added to the title
+    , titleAnnotations :: [TitleAnnotation]
 
     -- | How to determine the layout of the report or the chart.
     , presentation :: Presentation
@@ -269,6 +278,7 @@ data Config = Config
 -- @
 --  verbose           = False
 --  title             = Nothing
+--  titleAnnotations  = [TitleField]
 --  outputDir         = Nothing
 --  presentation      = Groups Absolute
 --  estimator         = Median
@@ -287,6 +297,7 @@ defaultConfig :: Config
 defaultConfig = Config
     { verbose           = False
     , title             = Nothing
+    , titleAnnotations  = [TitleField]
     , outputDir         = Nothing
     , presentation      = Groups Absolute
     , estimator         = Median
@@ -1236,11 +1247,15 @@ showEstimator est =
         Median     -> "Median"
         Regression -> "Regression Coeff."
 
+addAnnotation :: String -> Maybe String -> Config -> TitleAnnotation -> String
+addAnnotation field diff Config{..} annot =
+      inParens
+    $ case annot of
+        TitleField -> field
+        TitleEstimator -> showEstimator estimator
+        TitleDiff -> maybe "" inParens diff
+
 makeTitle :: String -> Maybe String -> Config -> String
-makeTitle field diff Config{..} =
+makeTitle field diff cfg@Config{..} =
        fromMaybe "" title
-    ++ inParens field
-    ++ inParens (showEstimator estimator)
-    ++ case diff of
-            Nothing -> ""
-            Just str -> inParens str
+       ++ concatMap (addAnnotation field diff cfg) titleAnnotations

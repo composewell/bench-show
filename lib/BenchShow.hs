@@ -85,6 +85,7 @@
 module BenchShow
     ( GroupStyle(..)
     , Presentation(..)
+    , TitleAnnotation (..)
     , Estimator (..)
     , DiffStrategy (..)
     , SortColumn (..)
