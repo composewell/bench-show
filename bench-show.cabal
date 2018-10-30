@@ -1,5 +1,5 @@
 name:               bench-show
-version:            0.2.1
+version:            0.2.2
 license:            BSD3
 author:             Harendra Kumar
 maintainer:         harendra.kumar@gmail.com
@@ -55,7 +55,7 @@ description:
 category:            Performance, Benchmarking
 homepage:            https://github.com/composewell/bench-show
 license-file:        LICENSE
-tested-with:           GHC==8.4.3
+tested-with:           GHC==8.4.4
                      , GHC==8.2.2
                      , GHC==7.10.3
 copyright:           2017, 2018 Composewell Technologies

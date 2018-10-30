@@ -178,6 +178,8 @@ data DiffStrategy =
 
 -- | Additional annotations that can be optionally added to the title of the
 -- report or graph.
+--
+-- @since 0.2.2
 data TitleAnnotation = TitleField | TitleEstimator | TitleDiff
     deriving (Eq, Show)
 

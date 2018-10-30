@@ -1,4 +1,4 @@
-## Unreleased
+## 0.2.2
 
 * Allow additional annotations to title to be controlled via config
 * Better error handling
