@@ -498,18 +498,21 @@ splitGroup :: (String -> Maybe (String, String))
            -> (Int, BenchmarkMatrix)
            -> [GroupMatrix]
 splitGroup classify (serial, matrix@BenchmarkMatrix{..}) =
-      mapMaybe (\x -> fmap (,x) $ classify x) (map fst rowValues)
-    & sortBy (comparing (fst . fst))
-    & groupBy ((==) `on` (fst . fst))
-    & map (foldr foldGroup ("",[]))
-    & map sanityCheckGroup
-    & map (\(name, benches) ->
-        GroupMatrix
-        { groupIndex  = serial
-        , groupName    = name
-        , groupBenches = benches
-        , groupMatrix  = matrix
-        })
+    let classified = mapMaybe (\x -> fmap (,x) $ classify x) (map fst rowValues)
+    in if null classified
+       then error "No benchmarks were selected by \"classifyBenchmark\""
+       else
+          sortBy (comparing (fst . fst)) classified
+        & groupBy ((==) `on` (fst . fst))
+        & map (foldr foldGroup ("",[]))
+        & map sanityCheckGroup
+        & map (\(name, benches) ->
+            GroupMatrix
+            { groupIndex  = serial
+            , groupName    = name
+            , groupBenches = benches
+            , groupMatrix  = matrix
+            })
 
     where
 
