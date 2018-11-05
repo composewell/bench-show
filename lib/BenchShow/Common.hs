@@ -973,12 +973,30 @@ selectCommon matrices =
         unless (null absent) $ putStrLn msg
         return matrix { groupBenches = newBenches }
 
-prepareGroupMatrices :: Config -> CSV -> [String] -> IO (Int, [GroupMatrix])
-prepareGroupMatrices cfg@Config{..} csvlines fields = do
-    let (hdr, runs) =
+prepareGroupMatrices :: Config
+                     -> FilePath
+                     -> CSV
+                     -> [String]
+                     -> IO (Int, [GroupMatrix])
+prepareGroupMatrices cfg@Config{..} inputFile csvlines fields = do
+    let (hdr, ls) =
               sanityCheckCSV csvlines
             & splitRuns
-            & ensureIterField
+
+    when (null ls) $
+        error $ "No benchmark results found in CSV file: " ++ show inputFile
+
+    let checkForData (runId, xs) =
+            when (null xs) $
+                putStrLn $ "No benchmark results found in the CSV file ["
+                        ++ show inputFile
+                        ++ "], for runId: "
+                        ++ show runId
+
+    mapM_ checkForData (zip [0..] ls)
+
+    let (hdr, runs) = ensureIterField (hdr, ls)
+
     xs <- sequence $ map (readIterations hdr) runs
             & map (filterFields fields)
             -- & _filterCommonSubsets

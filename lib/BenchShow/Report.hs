@@ -186,7 +186,7 @@ report :: FilePath -> Maybe FilePath -> Config -> IO ()
 report inputFile outputFile cfg@Config{..} = do
     let dir = fromMaybe "." outputDir
     (csvlines, fields) <- prepareToReport inputFile cfg
-    (runs, matrices) <- prepareGroupMatrices cfg csvlines fields
+    (runs, matrices) <- prepareGroupMatrices cfg inputFile csvlines fields
     case presentation of
         Groups style ->
             forM_ fields $
