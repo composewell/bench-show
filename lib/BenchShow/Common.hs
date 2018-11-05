@@ -979,7 +979,7 @@ prepareGroupMatrices :: Config
                      -> [String]
                      -> IO (Int, [GroupMatrix])
 prepareGroupMatrices cfg@Config{..} inputFile csvlines fields = do
-    let (hdr, ls) =
+    let res@(_, ls) =
               sanityCheckCSV csvlines
             & splitRuns
 
@@ -995,7 +995,7 @@ prepareGroupMatrices cfg@Config{..} inputFile csvlines fields = do
 
     mapM_ checkForData (zip [0..] ls)
 
-    let (hdr, runs) = ensureIterField (hdr, ls)
+    let (hdr, runs) = ensureIterField res
 
     xs <- sequence $ map (readIterations hdr) runs
             & map (filterFields fields)
