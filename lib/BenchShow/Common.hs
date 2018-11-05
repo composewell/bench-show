@@ -993,7 +993,7 @@ prepareGroupMatrices cfg@Config{..} inputFile csvlines fields = do
                         ++ "], for runId: "
                         ++ show runId
 
-    mapM_ checkForData (zip [0..] ls)
+    mapM_ checkForData (zip [(0 :: Int)..] ls)
 
     let (hdr, runs) = ensureIterField res
 
