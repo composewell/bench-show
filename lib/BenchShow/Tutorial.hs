@@ -8,7 +8,13 @@
 --
 -- BenchShow generates text reports and graphs from benchmarking results. It
 -- allows you to manipulate the format of the report and the benchmarking data
--- to present it in many useful ways.
+-- to present it in many useful ways. BenchShow uses robust statistical
+-- analysis using three different statistical estimators to provide as stable
+-- run-to-run comparison of benchmark results as possible.  For stable results,
+-- make sure that you are not executing any other tasks on the benchmark host
+-- while benhmarking is going on.  For even more stable results, we recommend
+-- using a desktop or server machine instead of a laptop notebook for
+-- benchmarking.
 
 module BenchShow.Tutorial
     (
