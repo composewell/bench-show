@@ -13,6 +13,11 @@ other features that are not listed here.
   generated we can wrap them all in a nicely formatted single html output file,
   and maybe also have an option to automatically open the file in the browser.
 
+* Optionally annotate each benchmark with its description i.e. how the
+  benchmark was performed and what parameters were used. This can be included
+  in a detailed report. Other than individual benchmark descriptions we can
+  also have a common description for the whole group of benchmarks in a report.
+
 * Ability to generate graphs using a logarithmic axis. Also the abiliy to
   choose the log axis automatically when the range being plotted is too wide.
 
