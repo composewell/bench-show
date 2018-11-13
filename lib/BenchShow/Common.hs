@@ -78,6 +78,8 @@ filterSanity label old new = do
         label ++
         " must not add any new items to the original list. The \
         \following items were added: " ++ show added
+        ++ "\nOriginal groups: " ++ show old
+        ++ "\nNew groups: " ++ show new
 
 -------------------------------------------------------------------------------
 
