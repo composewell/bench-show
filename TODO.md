@@ -24,3 +24,10 @@ other features that are not listed here.
 * Try [chart-unit](https://hackage.haskell.org/package/chart-unit) as an
   alternative charting backend in addition to the current
   `Chart`/`Chart-diagrams`.
+
+* Add a custom column in the csv file during benchmarking. This column can
+  record a parameter specified in the benchmark and then we can plot graphs
+  based on this parameter. For example, we can measure an append benchmark for
+  10, 100, 1000 and 10000 element streams and then plot the number of elements
+  vs timing. In this case, the custom column may be "stream-size" and it may
+  record the number of elements in the stream used for that measurement.
