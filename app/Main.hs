@@ -1,26 +1,19 @@
-{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 
 module Main where
 
 import BenchShow
 import Options.Applicative
+import Data.Char (toLower)
 import Data.Semigroup ((<>))
 
 data OpType = Report | Graph FilePath
 
 data CLIOptions = CLIOptions
-  {
-    verbose             :: Bool
-  , outputDir           :: Maybe FilePath
-  , title               :: Maybe String
-  , titleAnnotations    :: [TitleAnnotation]
-  , presentation        :: Presentation
-  , estimator           :: Estimator
-  , threshold           :: Word
-  , diffStrategy        :: DiffStrategy
-  , opType              :: OpType
-  , inputFile           :: FilePath
+  { cliConfig   :: Config
+  , opType      :: OpType
+  , inputFile   :: FilePath
   }
 
 ograph :: Parser OpType
@@ -134,36 +127,46 @@ pThreshold = option auto ( long "threshold"
                           <> value 3
                           <> help "Minimum % difference between two runs" )
 
-pConfig :: Parser CLIOptions
-pConfig = CLIOptions <$> pVerbose
+pSelectFields :: Parser ([String] -> [String])
+pSelectFields = pure (filter (flip elem
+                             ["time", "mean", "maxrss"]. map toLower))
+
+pFieldRanges :: Parser [(String, Double, Double)]
+pFieldRanges = pure []
+
+pFieldTicks :: Parser [(String, FieldTick)]
+pFieldTicks = pure []
+
+pClassifyBenchMark :: Parser (String -> Maybe (String, String))
+pClassifyBenchMark = pure $ Just . ("default",)
+
+pSelectGroups :: Parser ([(String, Int)] -> [(String, Int)])
+pSelectGroups = pure id
+
+pSelectBenchmarks :: Parser ((SortColumn -> Either String [(String, Double)])
+                  -> [String])
+pSelectBenchmarks = pure (\f -> either error (map fst) $ f (ColumnIndex 0))
+
+pConfig :: Parser Config
+pConfig = Config <$> pVerbose
           <*> pOutputDir <*> pTitle
           <*> pTitleAnnotation <*> pPresentation
           <*> pEstimator <*> pThreshold <*> pDiffStrategy
-          <*> pOptype <*> pInputFile
+          <*> pSelectFields <*> pFieldRanges <*> pFieldTicks
+          <*> pClassifyBenchMark <*> pSelectGroups <*> pSelectBenchmarks
+
+pCliOptions :: Parser CLIOptions
+pCliOptions = CLIOptions <$> pConfig <*> pOptype <*> pInputFile
 
 opts :: ParserInfo CLIOptions
-opts = info (pConfig <**> helper)
+opts = info (pCliOptions <**> helper)
        (fullDesc <> progDesc "Bench Show CLI"
        <> header "Command line executable for bench-show")
 
 main :: IO ()
 main = do
-  (CLIOptions cliVerbose cliOutdir cliTitle
-   cliTitleAnno cliPresentation
-   cliEstimator cliThreshold cliDiffStrategy
-   cliOptype cliInputFile) <- execParser opts
-
-  let cfg :: Config = defaultConfig {
-        verbose = cliVerbose
-        , outputDir = cliOutdir
-        , title = cliTitle
-        , titleAnnotations = cliTitleAnno
-        , presentation = cliPresentation
-        , estimator = cliEstimator
-        , threshold = cliThreshold
-        , diffStrategy = cliDiffStrategy
-        }
+  (CLIOptions cliConfig cliOptype cliInputFile) <- execParser opts
 
   case cliOptype of
-    Report -> report cliInputFile Nothing cfg
-    Graph outfile -> graph cliInputFile outfile cfg
+    Report -> report cliInputFile Nothing cliConfig
+    Graph outfile -> graph cliInputFile outfile cliConfig
