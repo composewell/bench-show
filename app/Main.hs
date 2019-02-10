@@ -2,6 +2,15 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 
+-- |
+-- Module      : Main
+-- Copyright   : (c) 2019 Composewell Technologies
+--               (c) 2019 Sanchayan Maity
+-- License     : BSD3
+-- Maintainer  : harendra.kumar@gmail.com
+-- Stability   : experimental
+-- Portability : GHC
+--
 module Main where
 
 import Data.Semigroup ((<>))
