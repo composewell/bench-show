@@ -1,171 +1,166 @@
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 
 module Main where
 
-import BenchShow
-import Options.Applicative
-import Data.Char (toLower)
 import Data.Semigroup ((<>))
+import Options.Applicative.Simple (addCommand, simpleOptions, simpleVersion)
+import Paths_bench_show (version)
 
-data OpType = Report | Graph FilePath
+import Options.Applicative
+import BenchShow
 
-data CLIOptions = CLIOptions
-  { cliConfig   :: Config
-  , opType      :: OpType
-  , inputFile   :: FilePath
-  }
+-- The command line interface provides subcommands for each task.  There are
+-- some common options that apply to all subcommands. Subcommands may have
+-- their own specific options as well.
 
-ograph :: Parser OpType
-ograph = Graph <$> strOption
-  ( long "gfile"
-  <> short 'g'
-  <> help "Provide a output file name for graph" )
-
-oreport :: Parser OpType
-oreport = flag' Report
-  ( long "report"
-  <> short 'r'
-  <> help "Produce a report")
-
-pOptype :: Parser OpType
-pOptype = oreport <|> ograph
-
-pInputFile :: Parser FilePath
-pInputFile = strOption
-  (long "ifile"
-  <> short 'i'
-  <> help "Input file")
+-------------------------------------------------------------------------------
+-- Common config options
+-------------------------------------------------------------------------------
 
 pVerbose :: Parser Bool
-pVerbose = switch ( long "verbose"
-                    <> short 'v'
-                    <> help "Provide more details in the report" )
+pVerbose = switch $
+       long "verbose"
+    <> short 'v'
+    <> help "Provide more details in the report output"
 
-pTitle :: Parser (Maybe String)
-pTitle = optional $ strOption
+pOutputDir :: Parser FilePath
+pOutputDir = strOption
+  ( long "output-dir"
+    <> metavar "DIR"
+    <> help "Default is current directory" )
+
+pTitle :: Parser String
+pTitle = strOption
   ( long "title"
     <> short 't'
-    <> metavar "Report title"
-    <> help "Report title, information like plotted field name etc." )
+    <> metavar "STRING"
+    <> help "Title for the report" )
 
-pTitleField :: Parser TitleAnnotation
-pTitleField = flag' TitleField
-  ( long "title-field"
-    <> help "Additional annotation for title of report" )
-
-pTitleEstimator :: Parser TitleAnnotation
-pTitleEstimator = flag' TitleEstimator
-  ( long "title-estimator"
-    <> help "Additional annotation for title of report" )
-
-pTitleDiff :: Parser TitleAnnotation
-pTitleDiff = flag' TitleDiff
-  ( long "title-diff"
-    <> help "Additional annotation for title of report" )
-  <|> pure TitleField
-
-pTitleAnnotation :: Parser [TitleAnnotation]
-pTitleAnnotation = (: []) <$> ( pTitleField
-                                <|> pTitleEstimator
-                                <|> pTitleDiff )
-
-pOutputDir :: Parser (Maybe FilePath)
-pOutputDir = optional $ strOption
-  ( long "output-dir" <> short 'o'
-    <> metavar "Output Directory"
-    <> value "charts"
-    <> help "Directory where output graph or report file should be placed" )
-
-pGroupStyle :: Parser GroupStyle
-pGroupStyle = flag' Absolute
-  ( long "absolute"
-    <> help "Show absolute field values for all groups" )
-  <|> flag' Diff
-  ( long "diff"
-    <> help "Show baseline group values" )
-  <|> flag' Percent
-  ( long "percent"
-    <> help "Show baseline group values as 100%" )
-  <|> flag' PercentDiff
-  ( long "percent-diff"
-    <> help "Show baseline group values as % difference" )
-  <|> pure Absolute
+pTitleAnnotation :: Parser TitleAnnotation
+pTitleAnnotation = option auto $
+       long "title-annotations"
+    <> help ("*TitleField*|TitleEstimator|TitleDiff")
 
 pPresentation :: Parser Presentation
-pPresentation = flag' Solo
-  ( long "solo" <> help "Solo Presentation")
-  <|> Groups <$> pGroupStyle
-  <|> flag' Fields
-  ( long "fields" <> help "Fields Presentation" )
-  <|> pure Solo
+pPresentation = option auto $
+       long "presentation"
+    <> help ("Solo|Fields|*Groups* <*Absolute*|Diff|Precent|PercentDiff>")
 
 pEstimator :: Parser Estimator
-pEstimator = flag' Median
-  ( long "median"
-    <> help "Report median, outliers & outlier variance" )
-  <|> flag' Mean
-  ( long "mean"
-    <> help "Report mean & standard deviation" )
-  <|> flag' Regression
-  ( long "regression"
-    <> help "Report coefficient of regression")
-  <|> pure Median
-
-pDiffStrategy :: Parser DiffStrategy
-pDiffStrategy = flag' MinEstimator
-  ( long "single-estimator"
-    <> help "Use single estimator to compute difference" )
-  <|> flag' MinEstimator
-  ( long "min-estimator"
-    <> help "Use mean, median & regression estimators" )
-  <|> pure MinEstimator
+pEstimator = option auto $
+       long "estimator"
+    <> help ("*Median*|Mean|Regression")
 
 pThreshold :: Parser Word
-pThreshold = option auto ( long "threshold"
-                          <> short 't'
-                          <> value 3
-                          <> help "Minimum % difference between two runs" )
+pThreshold = option auto $
+       long "threshold"
+    <> metavar "PERCENT"
+    <> help "Min % diff (default 3) to flag regression or improvement"
 
-pSelectFields :: Parser ([String] -> [String])
-pSelectFields = pure (filter (flip elem
-                             ["time", "mean", "maxrss"]. map toLower))
+pDiffStrategy :: Parser DiffStrategy
+pDiffStrategy = option auto $
+       long "diff-strategy"
+    <> help ("SingleEstimator|*MinEstimator*")
 
-pFieldRanges :: Parser [(String, Double, Double)]
-pFieldRanges = pure []
+-------------------------------------------------------------------------------
+-- Build a Config parser for common options
+-------------------------------------------------------------------------------
 
-pFieldTicks :: Parser [(String, FieldTick)]
-pFieldTicks = pure []
+-- Specify a default value for a Maybe inside a functor
+fMaybe :: Functor f => a -> f (Maybe a) -> f a
+fMaybe a = fmap (maybe a id)
 
-pClassifyBenchMark :: Parser (String -> Maybe (String, String))
-pClassifyBenchMark = pure $ Just . ("default",)
-
-pSelectGroups :: Parser ([(String, Int)] -> [(String, Int)])
-pSelectGroups = pure id
-
-pSelectBenchmarks :: Parser ((SortColumn -> Either String [(String, Double)])
-                  -> [String])
-pSelectBenchmarks = pure (\f -> either error (map fst) $ f (ColumnIndex 0))
+-- | parse an optional field with a default value taken from defaultConfig
+parseOptional :: (Config -> a) -> Parser a -> Parser a
+parseOptional def parser = fMaybe (def defaultConfig) (optional parser)
 
 pConfig :: Parser Config
-pConfig = Config <$> pVerbose
-          <*> pOutputDir <*> pTitle
-          <*> pTitleAnnotation <*> pPresentation
-          <*> pEstimator <*> pThreshold <*> pDiffStrategy
-          <*> pSelectFields <*> pFieldRanges <*> pFieldTicks
-          <*> pClassifyBenchMark <*> pSelectGroups <*> pSelectBenchmarks
+pConfig = Config
+    <$> parseOptional verbose pVerbose
+    <*> optional pOutputDir
+    <*> optional pTitle
+    <*> many pTitleAnnotation
+    <*> parseOptional presentation pPresentation
+    <*> parseOptional estimator pEstimator
+    <*> parseOptional threshold pThreshold
+    <*> parseOptional diffStrategy pDiffStrategy
+    <*> pure (selectFields defaultConfig)
+    <*> pure (fieldRanges defaultConfig)
+    <*> pure (fieldTicks defaultConfig)
+    <*> pure (classifyBenchmark defaultConfig)
+    <*> pure (selectGroups defaultConfig)
+    <*> pure (selectBenchmarks defaultConfig)
 
-pCliOptions :: Parser CLIOptions
-pCliOptions = CLIOptions <$> pConfig <*> pOptype <*> pInputFile
+-------------------------------------------------------------------------------
+-- "report" subcommand
+-------------------------------------------------------------------------------
 
-opts :: ParserInfo CLIOptions
-opts = info (pCliOptions <**> helper)
-       (fullDesc <> progDesc "Bench Show CLI"
-       <> header "Command line executable for bench-show")
+data ReportOpts = ReportOpts
+    { reportInput :: FilePath
+    , reportOutput :: Maybe FilePath
+    }
+
+pInputFile :: Parser FilePath
+pInputFile = argument str (metavar "INPUT-FILE.CSV")
+
+pOutputFile :: Parser FilePath
+pOutputFile = strOption
+  (long "output"
+  <> short 'o'
+  <> help "Output file")
+
+pReportOpts :: Parser ReportOpts
+pReportOpts = ReportOpts
+    <$> pInputFile
+    <*> optional pOutputFile
+
+cmdReport :: ReportOpts -> Config -> IO ()
+cmdReport ReportOpts{..} cfg = report reportInput reportOutput cfg
+
+-------------------------------------------------------------------------------
+-- "graph" subcommand
+-------------------------------------------------------------------------------
+
+data GraphOpts = GraphOpts
+    { graphInput :: FilePath
+    , graphOutput :: FilePath
+    }
+
+pOutputArg :: Parser FilePath
+pOutputArg = argument str (metavar "OUTPUT-FILE-PREFIX")
+
+pGraphOpts :: Parser GraphOpts
+pGraphOpts = GraphOpts
+    <$> pInputFile
+    <*> pOutputArg
+
+cmdGraph :: GraphOpts -> Config -> IO ()
+cmdGraph GraphOpts{..} cfg = graph graphInput graphOutput cfg
+
+-------------------------------------------------------------------------------
+-- Build and run a subcommand parser
+-------------------------------------------------------------------------------
+
+cmdLineParser :: Parser Config -> IO ()
+cmdLineParser p = do
+    (cfg, handler) <- simpleOptions $(simpleVersion version)
+        "Generate reports and graphs from gauge or criterion output.\n\
+        \Default values are shown as *DEFAULT*."
+        "" p cmds
+
+    handler cfg
+
+    where cmds = do
+            addCommand "report"
+                       "Generate a text report"
+                       cmdReport
+                       pReportOpts
+            addCommand "graph"
+                       "Generate a graphical report"
+                       cmdGraph
+                       pGraphOpts
 
 main :: IO ()
-main = do
-  (CLIOptions cliConfig cliOptype cliInputFile) <- execParser opts
-
-  case cliOptype of
-    Report -> report cliInputFile Nothing cliConfig
-    Graph outfile -> graph cliInputFile outfile cliConfig
+main = cmdLineParser pConfig
