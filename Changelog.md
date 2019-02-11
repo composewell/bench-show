@@ -1,3 +1,8 @@
+## Unreleased
+
+* Add a CLI executable to generate textual reports and graphs from criterion or
+  gauge csv output file.
+
 ## 0.2.2
 
 * Allow additional annotations to title to be controlled via config

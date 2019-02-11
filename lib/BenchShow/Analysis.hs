@@ -270,7 +270,7 @@ data Estimator =
                     -- better when larger number of samples are taken.  This
                     -- cannot be used when the number of samples is less than
                     -- 2, in that case a mean value is reported instead.
-    deriving (Eq, Show)
+    deriving (Eq, Show, Read)
 
 getAnalyzedValue :: Estimator -> AnalyzedField -> Double
 getAnalyzedValue estimator AnalyzedField{..} =

@@ -98,7 +98,7 @@ data GroupStyle =
     | PercentDiff -- ^ Show baseline group values as usual and values for
                      -- subsequent groups as precentage difference from the
                      -- baseline
-    deriving (Eq, Show)
+    deriving (Eq, Show, Read)
 
 -- | How to present the reports or graphs. Each report presents a number of
 -- benchmarks as rows, it may have, (1) a single column presenting the values
@@ -126,7 +126,7 @@ data Presentation =
                         -- with all the fields selected by the configuration as
                         -- columns or clusters. Output files are named using
                         -- @-estimator-groupname@ as suffix.
-    deriving (Eq, Show)
+    deriving (Eq, Show, Read)
 
 -- | FieldTick is used only in visual charts to generate the major ticks on
 -- the y-axis. You can specify either the size of a tick ('TickSize') or the
@@ -177,13 +177,14 @@ data DiffStrategy =
     | WorstBest
     | BestBest
     -}
+    deriving (Show, Read)
 
 -- | Additional annotations that can be optionally added to the title of the
 -- report or graph.
 --
 -- @since 0.2.2
 data TitleAnnotation = TitleField | TitleEstimator | TitleDiff
-    deriving (Eq, Show)
+    deriving (Eq, Show, Read)
 
 -- | Configuration governing generation of chart. See 'defaultConfig' for the
 -- default values of these fields.
@@ -276,6 +277,9 @@ data Config = Config
         -> [String]
     }
 
+-- IMPORTANT: If you change the defaults, please change the defaults in the CLI
+-- help as well.
+--
 -- | Default configuration. Use this as the base configuration and modify the
 -- required fields. The defaults are:
 --
