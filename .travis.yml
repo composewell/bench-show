@@ -85,8 +85,8 @@ matrix:
   #- env: BUILD=cabal-new GHCVER=8.6.1
   #  addons: {apt: {packages: [cabal-install-2.4,ghc-8.6.1], sources: [hvr-ghc]}}
 
-  #- env: BUILD=cabal-new GHCVER=8.4.3
-  #  addons: {apt: {packages: [cabal-install-2.2,ghc-8.4.3], sources: [hvr-ghc]}}
+  - env: BUILD=cabal-new GHCVER=8.4.3
+    addons: {apt: {packages: [cabal-install-2.4,ghc-8.4.3], sources: [hvr-ghc]}}
 
   #- env: BUILD=cabal-new GHCVER=8.2.2
   #  addons: {apt: {packages: [cabal-install-2.0,ghc-8.2.2], sources: [hvr-ghc]}}
@@ -111,12 +111,12 @@ matrix:
   #  addons: {apt: {packages: [cabal-install-1.24], sources: [hvr-ghc]}}
 
   # Using cabal-install-1.24 for stack solver to work
-  - env: BUILD=stack RESOLVER=lts-12 GHCVER=8.4
-    addons: {apt: {packages: [cabal-install-1.24], sources: [hvr-ghc]}}
+  - env: BUILD=stack RESOLVER=lts-13 GHCVER=8.6
+    addons: {apt: {packages: [cabal-install-2.4], sources: [hvr-ghc]}}
 
   # Use cabal-install-1.24 for stack solver to work
   - env: BUILD=stack RESOLVER=lts-11 GHCVER=8.2.2 STACK_YAML=stack-8.2.yaml
-    addons: {apt: {packages: [cabal-install-1.24], sources: [hvr-ghc]}}
+    addons: {apt: {packages: [cabal-install-2.4], sources: [hvr-ghc]}}
 
   #- env: BUILD=stack RESOLVER=lts-9 GHCVER=8.0.2
   #  addons: {apt: {packages: [cabal-install-1.24], sources: [hvr-ghc]}}
@@ -135,7 +135,7 @@ matrix:
   # --------------------------------------------------------------------------
 
   # GHC 8.4.3 cabal build using stack!
-  - env: BUILD=cabal-new RESOLVER=lts-12 GHCVER=8.4
+  - env: BUILD=cabal-new RESOLVER=lts-13 GHCVER=8.6
     os: osx
 
   # GHC 8.4.3/stack
