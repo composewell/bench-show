@@ -2,6 +2,8 @@
 
 * Add a CLI executable to generate textual reports and graphs from criterion or
   gauge csv output file.
+* Add `PercentDiffLower` and `PercentDiffHigher` diff options to show the
+  difference as a percentage of the lower of the higher of the two values.
 
 ## 0.2.2
 

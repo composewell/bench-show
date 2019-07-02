@@ -90,14 +90,20 @@ data ReportType = TextReport | GraphicalChart
 --
 -- @since 0.2.0
 data GroupStyle =
-      Absolute       -- ^ Show absolute field values for all groups
+      Absolute    -- ^ Show absolute field values for all groups
     | Diff        -- ^ Show baseline group values as usual and values for
-                     -- the subsequent groups as differences from the baseline
+                  -- the subsequent groups as differences from the baseline
     | Percent     -- ^ Show baseline group values as 100% and values for
-                     -- subsequent groups as a percentage of the baseline
-    | PercentDiff -- ^ Show baseline group values as usual and values for
-                     -- subsequent groups as precentage difference from the
-                     -- baseline
+                  -- subsequent groups as a percentage of the baseline
+    | PercentDiff -- ^ Baseline group values are shown in regular units.
+                  -- Subsequent groups show (baseline - group) as a percentage
+                  -- of baseline
+    | PercentDiffLower -- ^ Baseline group shows absolute values.
+                       -- Subsequent groups show the diff (baseline - group) as
+                       -- a percentage of the lower of the two values.
+    | PercentDiffHigher -- ^ Baseline group shows absolute values.
+                        -- Subsequent groups show the diff (baseline - group)
+                        -- as a percentage of the higher of the two values.
     deriving (Eq, Show, Read)
 
 -- | How to present the reports or graphs. Each report presents a number of
@@ -395,8 +401,10 @@ getUnitByFieldName fieldName fieldMin =
 fieldUnits :: String -> Double -> GroupStyle -> RelativeUnit
 fieldUnits fieldName fieldMin style =
     case style of
-        Percent      -> RelativeUnit "%" 1
-        PercentDiff  -> RelativeUnit "%" 1
+        Percent           -> RelativeUnit "%" 1
+        PercentDiff       -> RelativeUnit "%" 1
+        PercentDiffLower  -> RelativeUnit "%" 1
+        PercentDiffHigher -> RelativeUnit "%" 1
         _ -> getUnitByFieldName fieldName fieldMin
 
 -------------------------------------------------------------------------------
@@ -408,6 +416,12 @@ absoluteDiff v1 v2 = v2 - v1
 
 percentDiff :: (Fractional a, Num a) => a -> a -> a
 percentDiff v1 v2 = ((v2 - v1) * 100) / v1
+
+percentDiffLower :: (Fractional a, Num a, Ord a) => a -> a -> a
+percentDiffLower v1 v2 = ((v2 - v1) * 100) / min v1 v2
+
+percentDiffHigher :: (Fractional a, Num a, Ord a) => a -> a -> a
+percentDiffHigher v1 v2 = ((v2 - v1) * 100) / max v1 v2
 
 percent :: (Fractional a, Num a) => a -> a -> a
 percent v1 v2 = (v2 * 100) / v1
@@ -432,6 +446,26 @@ cmpTransformColumns rtype style estimator diffStrategy cols =
             let firstCol = head cols
                 colTransform col = zipWith (mkMinDiff diff) firstCol col
             in map colTransform (tail cols)
+
+        percentDiffWith f =
+            -- In a comparative graphical chart we cannot show the absolute
+            -- values in the baseline column as the units won't match for
+            -- the baseline and the diff clusters.
+            let baseCol =
+                    case rtype of
+                        TextReport -> head columns
+                        GraphicalChart | length columns == 1 ->
+                            head columns
+                        GraphicalChart ->
+                            map (\(n,_) -> (n,100)) (head columns)
+            in case diffStrategy of
+                MinEstimator ->
+                    let (ests, vals) = unzip $ map unzip (cmpMinWith f)
+                    in ( Just $ map (const estimator) (head cols) : ests
+                       , baseCol : vals
+                       )
+                SingleEstimator ->
+                   (Nothing, baseCol : cmpWith f)
     in case style of
             Absolute    -> (Nothing, columns)
             Percent     -> (Nothing, cmpWith percent)
@@ -444,25 +478,9 @@ cmpTransformColumns rtype style estimator diffStrategy cols =
                            )
                     SingleEstimator ->
                         (Nothing, head columns : cmpWith absoluteDiff)
-            PercentDiff ->
-                -- In a comparative graphical chart we cannot show the absolute
-                -- values in the baseline column as the units won't match for
-                -- the baseline and the diff clusters.
-                let baseCol =
-                        case rtype of
-                            TextReport -> head columns
-                            GraphicalChart | length columns == 1 ->
-                                head columns
-                            GraphicalChart ->
-                                map (\(n,_) -> (n,100)) (head columns)
-                in case diffStrategy of
-                    MinEstimator ->
-                        let (ests, vals) = unzip $ map unzip (cmpMinWith percentDiff)
-                        in ( Just $ map (const estimator) (head cols) : ests
-                           , baseCol : vals
-                           )
-                    SingleEstimator ->
-                       (Nothing, baseCol : cmpWith percentDiff)
+            PercentDiff       -> percentDiffWith percentDiff
+            PercentDiffLower  -> percentDiffWith percentDiffLower
+            PercentDiffHigher -> percentDiffWith percentDiffHigher
     where
         verify a b = if a then b else error "bug: benchmark names mismatch"
         transformVals = map (map (second (getAnalyzedValue estimator)))
@@ -489,8 +507,10 @@ transformColumnNames _ [] = []
 transformColumnNames style columns@(h:t) =
     let withDiff = colSuffix baseName h : map (colSuffix diffName) t
     in case style of
-            Diff        | length columns > 1 -> withDiff
-            PercentDiff | length columns > 1 -> withDiff
+            Diff              | length columns > 1 -> withDiff
+            PercentDiff       | length columns > 1 -> withDiff
+            PercentDiffLower  | length columns > 1 -> withDiff
+            PercentDiffHigher | length columns > 1 -> withDiff
             _           -> columns
 
     where
@@ -1095,21 +1115,32 @@ prepareGroupsReport cfg@Config{..} style outfile rtype runs field matrices =
         mkColUnits :: [RelativeUnit]
         mkColUnits =
             let cols =
-                    if style == Diff || style == PercentDiff
+                    if style == Diff
+                        || style == PercentDiff
+                        || style == PercentDiffLower
+                        || style == PercentDiffHigher
                     -- if we consider diff values as well here then the
                     -- units will change to potentially very small.
                     then [head sortedCols]
                     else sortedCols
                 minVal = getFieldMin cfg (minimum $ concat cols) field
-            in case (rtype, style) of
-                -- In case of percentDiff in TextReport we use absolute
-                -- values in the baseline column, so the unit is different.
-                (TextReport, PercentDiff) ->
+                mkPercentColUnitText =
                     let unit = fieldUnits field minVal Absolute
                         punit = fieldUnits field 1 style -- % unit
                     in unit : replicate (length matrices - 1) punit
+                mkPercentColUnitGraph = [fieldUnits field minVal Absolute]
+            in case (rtype, style) of
+                -- In case of percentDiff in TextReport we use absolute
+                -- values in the baseline column, so the unit is different.
+                (TextReport, PercentDiff)       -> mkPercentColUnitText
+                (TextReport, PercentDiffLower)  -> mkPercentColUnitText
+                (TextReport, PercentDiffHigher) -> mkPercentColUnitText
                 (GraphicalChart, PercentDiff) | length matrices == 1 ->
-                    [fieldUnits field minVal Absolute]
+                    mkPercentColUnitGraph
+                (GraphicalChart, PercentDiffLower)  | length matrices == 1 ->
+                    mkPercentColUnitGraph
+                (GraphicalChart, PercentDiffHigher) | length matrices == 1 ->
+                    mkPercentColUnitGraph
                 _ -> let unit = fieldUnits field minVal style
                      in replicate (length matrices) unit
 
@@ -1261,6 +1292,8 @@ diffString style s =
     case style of
         Groups Diff        -> Just $ "Diff " ++ showDiffStrategy s
         Groups PercentDiff -> Just $ "Diff " ++ showDiffStrategy s
+        Groups PercentDiffLower -> Just $ "Diff " ++ showDiffStrategy s
+        Groups PercentDiffHigher -> Just $ "Diff " ++ showDiffStrategy s
         _ -> Nothing
 
 inParens :: String -> String
