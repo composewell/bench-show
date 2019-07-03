@@ -273,13 +273,17 @@ data Config = Config
     ---------------------------------------------------------------------------
 
     -- | Filter and reorder benchmarks. 'selectBenchmarks' is provided with a
-    -- function which is invoked with a sorting column name or index, the
-    -- function produces the benchmark names and corresponding values for that
-    -- column which can be used as a sorting criterion. The output of
-    -- 'selectBenchmarks' is a list of benchmarks in the order in which they
-    -- are to be rendered.
+    -- function which is invoked with a sorting column name or index and a
+    -- 'GroupStyle', the function produces either the benchmark names and
+    -- values corresponding to that column and style ('Right' constructor
+    -- result) which can be used as a sorting criterion, or an error ('Left'
+    -- constructor result). The 'Right' either value is a list of
+    -- benchmarks in the order in which they are to be rendered. The style is
+    -- ignored when the report presentation is not 'Groups'. When style is
+    -- 'Nothing', the presentation setting specified in the configuration is
+    -- used.
     , selectBenchmarks
-        :: (SortColumn -> Either String [(String, Double)])
+        :: (SortColumn -> Maybe GroupStyle -> Either String [(String, Double)])
         -> [String]
     }
 
@@ -303,7 +307,7 @@ data Config = Config
 --  fieldTicks        = []
 --  classifyBenchmark = Just . ("default",)
 --  selectGroups      = id
---  selectBenchmarks  = \f -> either error (map fst) $ f (ColumnIndex 0)
+--  selectBenchmarks  = \f -> either error (map fst) $ f (ColumnIndex 0) Nothing
 -- @
 --
 -- @since 0.2.0
@@ -322,7 +326,7 @@ defaultConfig = Config
     , fieldTicks        = []
     , classifyBenchmark = Just . ("default",)
     , selectGroups      = id
-    , selectBenchmarks  = \f -> either error (map fst) $ f (ColumnIndex 0)
+    , selectBenchmarks  = \f -> either error (map fst) $ f (ColumnIndex 0) Nothing
     }
 
 -------------------------------------------------------------------------------
@@ -625,8 +629,9 @@ benchmarkCompareSanity benchmarks GroupMatrix{..} = do
 selectBenchmarksByField :: Config
                         -> [GroupMatrix]
                         -> [[(String, Double)]]
+                        -> (GroupStyle -> [[(String, Double)]])
                         -> [String]
-selectBenchmarksByField Config{..} matrices columns =
+selectBenchmarksByField Config{..} matrices columns colsByStyle =
     let bmnames = selectBenchmarks extractGroup
     in if (null bmnames)
        then error $ "selectBenchmarks must select at least one benchmark"
@@ -647,17 +652,22 @@ selectBenchmarksByField Config{..} matrices columns =
         in map getName matrices
 
     -- columns are benchmark groups in this case
-    extractGroup (ColumnName (Left name)) =
-            let len = length columns
-            in if len <= 1
-               then extractGroup $ ColumnName (Right (name, 0))
-               else Left $ "selectBenchmarks: there are " ++ show len
-                    ++ " runs in the input data, please specify the run \
-                    \index [0-" ++ show (len - 1)
-                    ++ "] along with the group name."
-    extractGroup (ColumnName (Right (name, runId))) =
-            extractColumnByGroupName name runId
-    extractGroup (ColumnIndex n) = extractColumnByGroupIndex n
+    extractGroup colSelector style =
+            let cols = case style of
+                    Nothing -> columns
+                    Just s -> colsByStyle s
+            in case colSelector of
+                ColumnName (Left name) ->
+                    let len = length cols
+                    in if len <= 1
+                       then extractGroup (ColumnName (Right (name, 0))) style
+                       else Left $ "selectBenchmarks: there are " ++ show len
+                            ++ " runs in the input data, please specify the run \
+                            \index [0-" ++ show (len - 1)
+                            ++ "] along with the group name."
+                ColumnName (Right (name, runId)) ->
+                    extractColumnByGroupName name runId style
+                ColumnIndex n -> extractColumnByGroupIndex n cols
 
     -- The benchmark field is constant.  Extract all benchmark values for the
     -- given field and for the given group.
@@ -671,20 +681,20 @@ selectBenchmarksByField Config{..} matrices columns =
                     True -> res
         in foldl foldFunc (0, False) mxs
 
-    extractColumnByGroupName name runId =
+    extractColumnByGroupName name runId style =
             case findColumnIndex matrices (name, runId) of
                 (_, False) -> Left $ "Benchmark group name [" ++ name
                             ++ "] and index [" ++ show runId
                             ++ "] not found. Available groups are: "
                             ++ show grpNames
-                (i, True) -> extractGroup (ColumnIndex i)
+                (i, True) -> extractGroup (ColumnIndex i) style
 
-    extractColumnByGroupIndex idx =
-        let len = length columns
+    extractColumnByGroupIndex idx cols =
+        let len = length cols
         in if idx >= len
            then Left $ "Column index must be in the range [0-"
                 ++ show (len - 1) ++ "]"
-           else Right $ columns !! idx
+           else Right $ cols !! idx
 
 selectBenchmarksByGroup :: Config -> GroupMatrix -> [String]
 selectBenchmarksByGroup Config{..} grp@GroupMatrix{..} =
@@ -697,11 +707,11 @@ selectBenchmarksByGroup Config{..} grp@GroupMatrix{..} =
     where
 
     -- columns are benchmark fields in this case
-    extractField (ColumnName (Left name)) = extractColumnByFieldName name
-    extractField (ColumnName (Right (name, _))) =
+    extractField (ColumnName (Left name)) _ = extractColumnByFieldName name
+    extractField (ColumnName (Right (name, _))) _ =
         -- XXX runId does not make sense for fields
         extractColumnByFieldName name
-    extractField (ColumnIndex n) = extractColumnByFieldIndex n
+    extractField (ColumnIndex n) _ = extractColumnByFieldIndex n
 
     -- The benchmark field is constant.  Extract all benchmark values for the
     -- given field and for the given group.
@@ -1108,7 +1118,11 @@ prepareGroupsReport cfg@Config{..} style outfile rtype runs field matrices =
 
         (estimators, transformedCols) =
             cmpTransformColumns rtype style estimator diffStrategy unsortedCols
-        benchmarks = selectBenchmarksByField cfg matrices transformedCols
+        transformedColsByStyle s = snd $
+            cmpTransformColumns rtype s estimator diffStrategy unsortedCols
+
+        benchmarks = selectBenchmarksByField cfg matrices
+                            transformedCols transformedColsByStyle
         sortedCols = map (sortValues benchmarks) transformedCols
         origSortedCols = map (sortValues benchmarks) unsortedCols
 

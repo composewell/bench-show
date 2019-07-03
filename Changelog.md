@@ -1,5 +1,16 @@
 ## Unreleased
 
+### Breaking Changes
+
+* The signature of `selectBenchmarks` has changed. The function argument to
+  generate the benchmarks now takes one more argument of type `GroupStyle`. It
+  is useful when we want to sort the benchmarks in a way independent of the
+  actual presentation style. For example we may want to sort the benchmarks
+  using `PercentDiff` but the presentation style in the config could be
+  `Absolute` so that we show aboslute values in the report.
+
+### Enhancements
+
 * Add a CLI executable to generate textual reports and graphs from criterion or
   gauge csv output file.
 * Add `PercentDiffLower` and `PercentDiffHigher` diff options to show the
