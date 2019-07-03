@@ -27,6 +27,12 @@ import Text.Printf (printf)
 import BenchShow.Common
 import BenchShow.Analysis
 
+isPercentDiff :: GroupStyle -> Bool
+isPercentDiff PercentDiff = True
+isPercentDiff PercentDiffLower = True
+isPercentDiff PercentDiffHigher = True
+isPercentDiff _ = False
+
 -- XXX in comparative reports render lower than baseline in green and higher
 -- than baseline in red
 genGroupReport :: RawReport -> Config -> IO ()
@@ -43,7 +49,7 @@ genGroupReport RawReport{..} cfg@Config{..} = do
                     let f x = case presentation of
                                 Groups Diff ->
                                     if x > 0 then dullred else dullgreen
-                                Groups PercentDiff ->
+                                Groups grp | isPercentDiff grp ->
                                     if x > fromIntegral threshold
                                     then dullred
                                     else if x < (-1) * fromIntegral threshold
@@ -58,7 +64,7 @@ genGroupReport RawReport{..} cfg@Config{..} = do
                                     $ showCol col estimators analyzed
                     in case presentation of
                         Groups Diff        -> colored
-                        Groups PercentDiff -> colored
+                        Groups grp | isPercentDiff grp -> colored
                         _ -> regular
             in renderGroupCol (showFirstCol firstCol)
              : case reportEstimators of
@@ -131,14 +137,14 @@ genGroupReport RawReport{..} cfg@Config{..} = do
                         then printf "+%.2f" val
                         else printf "%.2f" val
                 in case presentation of
-                        Groups Diff        -> showDiff
-                        Groups PercentDiff -> showDiff
+                        Groups Diff -> showDiff
+                        Groups grp | isPercentDiff grp -> showDiff
                         _ -> printf "%.2f" val
 
             showEstAnnot est =
                 case presentation of
-                    Groups Diff        -> showEstimator est
-                    Groups PercentDiff -> showEstimator est
+                    Groups Diff -> showEstimator est
+                    Groups grp | isPercentDiff grp -> showEstimator est
                     _ -> ""
 
         in case estimators of
