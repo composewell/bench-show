@@ -97,7 +97,7 @@ main = do
                     reverse
                   $ map fst
                   $ sortBy (comparing snd)
-                  $ either error id $ f $ ColumnIndex 1
+                  $ either error id $ f (ColumnIndex 1) Nothing
         }
     report "test/results-doc.csv" Nothing
         defaultConfig
@@ -108,7 +108,7 @@ main = do
                     reverse
                   $ map fst
                   $ sortBy (comparing snd)
-                  $ either error id $ f $ ColumnIndex 1
+                  $ either error id $ f (ColumnIndex 1) Nothing
         }
 
     graph
@@ -122,7 +122,7 @@ main = do
                     reverse
                   $ map fst
                   $ sortBy (comparing snd)
-                  $ either error id $ f $ ColumnIndex 1
+                  $ either error id $ f (ColumnIndex 1) Nothing
         }
     report
         "test/results-doc-multi.csv"
@@ -135,5 +135,5 @@ main = do
                     reverse
                   $ map fst
                   $ sortBy (comparing snd)
-                  $ either error id $ f $ ColumnIndex 1
+                  $ either error id $ f (ColumnIndex 1) Nothing
         }
