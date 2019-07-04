@@ -7,14 +7,24 @@
   is useful when we want to sort the benchmarks in a way independent of the
   actual presentation style. For example we may want to sort the benchmarks
   using `PercentDiff` but the presentation style in the config could be
-  `Absolute` so that we show aboslute values in the report.
+  `Absolute` so that we show absolute values in the report.
+
+### Bug Fixes
+
+* Fix `GroupStyle Percent`, it showed incorrect data for baseline column and
+  other groups as well and one of the groups was missing.
+* `GroupStyle Absolute` now honors the `MinEstimator` setting. When
+  `MinEstimator` is set, the groups being compared to baseline now display the
+  value based on the estimator which provides closest estimate to the baseline.
 
 ### Enhancements
 
 * Add a CLI executable to generate textual reports and graphs from criterion or
   gauge csv output file.
 * Add `PercentDiffLower` and `PercentDiffHigher` diff options to show the
-  difference as a percentage of the lower of the higher of the two values.
+  difference as a percentage of the lower or the higher of the two values.
+* Add `Fraction` as a comparison option, the group being compared is shown as a
+  fraction of the baseline.
 
 ## 0.2.2
 
