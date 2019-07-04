@@ -47,15 +47,15 @@ pTitle = strOption
     <> metavar "STRING"
     <> help "Title for the report" )
 
-pTitleAnnotation :: Parser TitleAnnotation
-pTitleAnnotation = option auto $
-       long "title-annotations"
-    <> help ("*TitleField*|TitleEstimator|TitleDiff")
+pTitleAnnotation :: Parser Bool
+pTitleAnnotation = switch $
+       long "title-suffix-field"
+    <> help ("Add the benchmark field name being plotted to the title")
 
 pPresentation :: Parser Presentation
 pPresentation = option auto $
        long "presentation"
-    <> help ("Solo|Fields|*Groups* <*Absolute*|Diff|Precent|PercentDiff>")
+    <> help ("Solo|Fields|*Groups* <*Absolute*|Diff|Fraction|Percent|PercentDiffLower|PercentDiffHigher>")
 
 pEstimator :: Parser Estimator
 pEstimator = option auto $
@@ -71,7 +71,7 @@ pThreshold = option auto $
 pDiffStrategy :: Parser DiffStrategy
 pDiffStrategy = option auto $
        long "diff-strategy"
-    <> help ("SingleEstimator|*MinEstimator*")
+    <> help ("*SingleEstimator*|MinEstimator")
 
 -------------------------------------------------------------------------------
 -- Build a Config parser for common options
@@ -85,12 +85,12 @@ fMaybe a = fmap (maybe a id)
 parseOptional :: (Config -> a) -> Parser a -> Parser a
 parseOptional def parser = fMaybe (def defaultConfig) (optional parser)
 
+-- XXX Add the ability to annotate the title with field name
 pConfig :: Parser Config
 pConfig = Config
     <$> parseOptional verbose pVerbose
     <*> optional pOutputDir
-    <*> optional pTitle
-    <*> many pTitleAnnotation
+    <*> fmap (\x -> fmap (\tstr -> \_ -> tstr) x) (optional pTitle)
     <*> parseOptional presentation pPresentation
     <*> parseOptional estimator pEstimator
     <*> parseOptional threshold pThreshold

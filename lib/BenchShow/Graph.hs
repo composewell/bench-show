@@ -75,11 +75,7 @@ genGroupGraph RawReport{..} cfg@Config{..} = do
         replaceMu x = x
         unitLabel = map replaceMu ulabel
         columns = transformColumns reportColumns
-        diffStr =
-            if length reportColumns > 1
-            then diffString presentation diffStrategy
-            else Nothing
-        atitle = makeTitle reportIdentifier diffStr cfg
+        atitle = maybe "" (\f -> f reportIdentifier) mkTitle
 
     toFile def outputFile $ do
         layout_title .= atitle

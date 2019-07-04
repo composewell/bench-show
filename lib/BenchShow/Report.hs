@@ -36,12 +36,8 @@ isPercentDiff _ = False
 -- XXX in comparative reports render lower than baseline in green and higher
 -- than baseline in red
 genGroupReport :: RawReport -> Config -> IO ()
-genGroupReport RawReport{..} cfg@Config{..} = do
-    let diffStr =
-            if length reportColumns > 1
-            then diffString presentation diffStrategy
-            else Nothing
-    putStrLn $ makeTitle reportIdentifier diffStr cfg
+genGroupReport RawReport{..} Config{..} = do
+    putStrLn $ maybe "" (\f -> f reportIdentifier) mkTitle
     let benchcol  = "Benchmark" : reportRowIds
         groupcols =
             let firstCol : tailCols = reportColumns

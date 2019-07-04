@@ -35,7 +35,6 @@ module BenchShow.Common
     , RawReport(..)
     , ReportType(..)
     , diffString
-    , makeTitle
     , prepareToReport
     , reportComparingGroups
     , reportPerGroup
@@ -50,7 +49,7 @@ import Data.Foldable (foldl')
 import Data.Function ((&), on)
 import Data.List
        (transpose, groupBy, (\\), find, sortBy, elemIndex, intersect,
-        intersectBy, concatMap)
+        intersectBy)
 import Data.List.Split (linesBy)
 import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Ord (comparing)
@@ -212,12 +211,9 @@ data Config = Config
     -- | The directory where the output graph or report file should be placed.
     , outputDir   :: Maybe FilePath
 
-    -- | Report title, more information like the plotted field name or
-    -- the presentation style may be added to it.
-    , title  :: Maybe String
-
-    -- | Additional annotations to be added to the title
-    , titleAnnotations :: [TitleAnnotation]
+    -- | Function to make a title for the report. The argument to the function
+    -- is the benchmark field name for which the report is being made.
+    , mkTitle  :: Maybe (String -> String)
 
     -- | How to determine the layout of the report or the chart.
     , presentation :: Presentation
@@ -301,7 +297,7 @@ data Config = Config
 --
 -- @
 --  verbose           = False
---  title             = Nothing
+--  mkTitle           = Nothing
 --  titleAnnotations  = [TitleField]
 --  outputDir         = Nothing
 --  presentation      = Groups Absolute
@@ -320,8 +316,7 @@ data Config = Config
 defaultConfig :: Config
 defaultConfig = Config
     { verbose           = False
-    , title             = Nothing
-    , titleAnnotations  = [TitleField]
+    , mkTitle           = Nothing
     , outputDir         = Nothing
     , presentation      = Groups Absolute
     , estimator         = Median
@@ -1202,12 +1197,13 @@ prepareGroupsReport cfg@Config{..} style outfile rtype runs field matrices =
 
 showStatusMessage :: Show a => Config -> String -> Maybe a -> IO ()
 showStatusMessage cfg field outfile =
-    let atitle = makeTitle field (diffString (presentation cfg)
-                                 (diffStrategy cfg)) cfg
+    let atitle = case mkTitle cfg of
+                    Just f -> " [" ++ f field ++ "]"
+                    Nothing -> ""
     in case outfile of
         Just path ->
-            putStrLn $ "Creating chart "
-                ++ "[" ++ atitle ++ "]"
+            putStrLn $ "Creating chart"
+                ++ atitle
                 ++ " at "
                 ++ show path
         Nothing -> return ()
@@ -1322,23 +1318,3 @@ diffString style s =
 
 inParens :: String -> String
 inParens str = "(" ++ str ++ ")"
-
-showEstimator :: Estimator -> String
-showEstimator est =
-    case est of
-        Mean       -> "Mean"
-        Median     -> "Median"
-        Regression -> "Regression Coeff."
-
-addAnnotation :: String -> Maybe String -> Config -> TitleAnnotation -> String
-addAnnotation field diff Config{..} annot =
-      inParens
-    $ case annot of
-        TitleField -> field
-        TitleEstimator -> showEstimator estimator
-        TitleDiff -> maybe "" inParens diff
-
-makeTitle :: String -> Maybe String -> Config -> String
-makeTitle field diff cfg@Config{..} =
-       fromMaybe "" title
-       ++ concatMap (addAnnotation field diff cfg) titleAnnotations

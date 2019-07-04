@@ -2,6 +2,8 @@
 
 ### Breaking Changes
 
+* Config fields `title` and `titleAnnotations` have been removed, please use
+  `mkTitle` instead.
 * The signature of `selectBenchmarks` has changed, use 'Nothing' as the second
   argument to port old code. The function argument to generate the benchmarks
   now takes one more argument of type `GroupStyle`. It is useful when we want
@@ -28,6 +30,7 @@
   difference as a percentage of the lower or the higher of the two values.
 * Add `Fraction` as a comparison option, the group being compared is shown as a
   fraction of the baseline.
+* Add `mkTitle` config option to use a function for generating report title.
 
 ### Deprecations
 
