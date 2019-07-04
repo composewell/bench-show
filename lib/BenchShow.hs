@@ -85,6 +85,7 @@
 module BenchShow
     ( ComparisonStyle(..)
     , Presentation(..)
+    , GroupStyle(..)
     , TitleAnnotation (..)
     , Estimator (..)
     , DiffStrategy (..)
@@ -94,9 +95,6 @@ module BenchShow
     , defaultConfig
     , report
     , graph
-
-    -- * Deprecated
-    , GroupStyle
     ) where
 
 import BenchShow.Common

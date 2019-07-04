@@ -73,7 +73,7 @@ main = do
                 let i = intersect (map (last . splitOn "/") prefixes) bs
                 in i ++ (bs \\ i)
         cfg = defaultConfig
-            { title = Just chartTitle
+            { mkTitle = Just (\_ -> chartTitle)
             , outputDir = Just "charts"
             , classifyBenchmark = \bm ->
                 case any (`isPrefixOf` bm) prefixes of
@@ -109,15 +109,15 @@ main = do
     graph "test/results.csvraw" "csvraw-delta"
             cfg { fieldRanges = [("mean", -20000, 50000)]
                 , fieldTicks = [("mean", TickCount 7)]
-                , presentation = Groups Diff
+                , presentation = Groups (Relative Diff True)
                 , selectFields = (`intersect` ["time"])
                 }
     graph "test/results.csvraw" "csvraw-percent"
-            cfg { presentation = Groups Percent
+            cfg { presentation = Groups (Relative Percent True)
                 , selectFields = (`intersect` ["time"])
                 }
     graph "test/results.csvraw" "csvraw-percent-delta"
-            cfg { presentation = Groups PercentDiff
+            cfg { presentation = Groups (Relative PercentDiff True)
                 , selectFields = (`intersect` ["time"])
                 }
 
@@ -148,15 +148,15 @@ main = do
                 }
 
     report "test/results.csv" Nothing
-            cfg { presentation = Groups Percent
+            cfg { presentation = Groups (Relative Percent True)
                 }
 
     report "test/results.csv" Nothing
-            cfg { presentation = Groups PercentDiff
+            cfg { presentation = Groups (Relative PercentDiff True)
                 , selectBenchmarks = \g ->
                     either error (map fst . sortBy (compare `on` snd))
                            (g (ColumnIndex 1) Nothing)
                 }
     report "test/results.csv" Nothing
-            cfg { presentation = Groups Diff
+            cfg { presentation = Groups (Relative Diff True)
                 }

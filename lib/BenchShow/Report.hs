@@ -43,9 +43,9 @@ genGroupReport RawReport{..} Config{..} = do
             let firstCol : tailCols = reportColumns
                 colorCol ReportColumn{..} =
                     let f x = case presentation of
-                                Groups Diff ->
+                                Groups (Relative Diff _) ->
                                     if x > 0 then dullred else dullgreen
-                                Groups grp | isPercentDiff grp ->
+                                Groups (Relative grp _) | isPercentDiff grp ->
                                     if x > fromIntegral threshold
                                     then dullred
                                     else if x < (-1) * fromIntegral threshold
@@ -59,8 +59,8 @@ genGroupReport RawReport{..} Config{..} = do
                                     $ renderGroupCol
                                     $ showCol col estimators analyzed
                     in case presentation of
-                        Groups Diff        -> colored
-                        Groups grp | isPercentDiff grp -> colored
+                        Groups (Relative Diff _) -> colored
+                        Groups (Relative grp _) | isPercentDiff grp -> colored
                         _ -> regular
             in renderGroupCol (showFirstCol firstCol)
              : case reportEstimators of
@@ -133,14 +133,14 @@ genGroupReport RawReport{..} Config{..} = do
                         then printf "+%.2f" val
                         else printf "%.2f" val
                 in case presentation of
-                        Groups Diff -> showDiff
-                        Groups grp | isPercentDiff grp -> showDiff
+                        Groups (Relative Diff _) -> showDiff
+                        Groups (Relative grp _) | isPercentDiff grp -> showDiff
                         _ -> printf "%.2f" val
 
             showEstAnnot est =
                 case presentation of
-                    Groups Diff -> showEstimator est
-                    Groups grp | isPercentDiff grp -> showEstimator est
+                    Groups (Relative Diff _) -> showEstimator est
+                    Groups (Relative grp _) | isPercentDiff grp -> showEstimator est
                     _ -> ""
 
         in case estimators of

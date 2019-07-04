@@ -4,6 +4,8 @@
 
 * Config fields `title` and `titleAnnotations` have been removed, please use
   `mkTitle` instead.
+* The type of `GroupStyle` has changed, existing usage will have to adapt to
+  the new type.
 * The signature of `selectBenchmarks` has changed, use 'Nothing' as the second
   argument to port old code. The function argument to generate the benchmarks
   now takes one more argument of type `GroupStyle`. It is useful when we want
@@ -30,11 +32,9 @@
   difference as a percentage of the lower or the higher of the two values.
 * Add `Fraction` as a comparison option, the group being compared is shown as a
   fraction of the baseline.
+* Add ability to omit the baseline group from the results when we are doing a
+  relative comparison among groups.
 * Add `mkTitle` config option to use a function for generating report title.
-
-### Deprecations
-
-* `GroupStyle` has been deprecated and renamed to `ComparisonStyle`
 
 ## 0.2.2
 
