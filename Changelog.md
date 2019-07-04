@@ -9,6 +9,8 @@
   For example we may want to sort the benchmarks using `PercentDiff` but the
   presentation style in the config could be `Absolute` so that we show absolute
   values in the report.
+* Change the default `diffStrategy` to `SingleEstimator` instead of
+  `MinEstimator`.
 
 ### Bug Fixes
 
