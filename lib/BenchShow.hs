@@ -53,7 +53,7 @@
 -- bars in the cluster.
 --
 -- When the columns are groups, each report consists of results for a single
--- benchmarking field for different benchmark groups.  Using 'GroupStyle', we
+-- benchmarking field for different benchmark groups.  Using 'ComparisonStyle', we
 -- can further specify how we want to present the results the groups. We can
 -- either present absolute values of the field for each group or we can make
 -- the first group as a baseline and present differences from the baseline for
@@ -83,7 +83,7 @@
 -- by these tests.
 
 module BenchShow
-    ( GroupStyle(..)
+    ( ComparisonStyle(..)
     , Presentation(..)
     , TitleAnnotation (..)
     , Estimator (..)
@@ -94,6 +94,9 @@ module BenchShow
     , defaultConfig
     , report
     , graph
+
+    -- * Deprecated
+    , GroupStyle
     ) where
 
 import BenchShow.Common

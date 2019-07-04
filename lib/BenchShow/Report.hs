@@ -27,7 +27,7 @@ import Text.Printf (printf)
 import BenchShow.Common
 import BenchShow.Analysis
 
-isPercentDiff :: GroupStyle -> Bool
+isPercentDiff :: ComparisonStyle -> Bool
 isPercentDiff PercentDiff = True
 isPercentDiff PercentDiffLower = True
 isPercentDiff PercentDiffHigher = True

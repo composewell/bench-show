@@ -2,12 +2,13 @@
 
 ### Breaking Changes
 
-* The signature of `selectBenchmarks` has changed. The function argument to
-  generate the benchmarks now takes one more argument of type `GroupStyle`. It
-  is useful when we want to sort the benchmarks in a way independent of the
-  actual presentation style. For example we may want to sort the benchmarks
-  using `PercentDiff` but the presentation style in the config could be
-  `Absolute` so that we show absolute values in the report.
+* The signature of `selectBenchmarks` has changed, use 'Nothing' as the second
+  argument to port old code. The function argument to generate the benchmarks
+  now takes one more argument of type `GroupStyle`. It is useful when we want
+  to sort the benchmarks in a way independent of the actual presentation style.
+  For example we may want to sort the benchmarks using `PercentDiff` but the
+  presentation style in the config could be `Absolute` so that we show absolute
+  values in the report.
 
 ### Bug Fixes
 
@@ -25,6 +26,10 @@
   difference as a percentage of the lower or the higher of the two values.
 * Add `Fraction` as a comparison option, the group being compared is shown as a
   fraction of the baseline.
+
+### Deprecations
+
+* `GroupStyle` has been deprecated and renamed to `ComparisonStyle`
 
 ## 0.2.2
 

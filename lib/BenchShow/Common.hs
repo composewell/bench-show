@@ -14,7 +14,8 @@
 
 module BenchShow.Common
     ( Presentation(..)
-    , GroupStyle(..)
+    , ComparisonStyle(..)
+    , GroupStyle -- deprecated
     , FieldTick (..)
     , SortColumn (..)
     , RelativeUnit (..)
@@ -89,7 +90,7 @@ data ReportType = TextReport | GraphicalChart
 -- or bar chart clusters.
 --
 -- @since 0.2.0
-data GroupStyle =
+data ComparisonStyle =
       Absolute    -- ^ Show absolute field values for all groups
     | Diff        -- ^ Show baseline group values as usual and values for
                   -- the subsequent groups as differences from the baseline
@@ -108,6 +109,9 @@ data GroupStyle =
                         -- as a percentage of the higher of the two values.
     deriving (Eq, Show, Read)
 
+{-# DEPRECATED GroupStyle "Please 'ComparisonStyle' instead" #-}
+type GroupStyle = ComparisonStyle
+
 -- | How to present the reports or graphs. Each report presents a number of
 -- benchmarks as rows, it may have, (1) a single column presenting the values
 -- for a single field, (2) multiple columns presenting values for different
@@ -124,7 +128,7 @@ data Presentation =
                         -- configuration then a total of @m x n@ reports are
                         -- generated.  Output files are named using
                         -- @-estimator-groupname-fieldname@ as suffix.
-    | Groups GroupStyle -- ^ One report is generated for each field selected by
+    | Groups ComparisonStyle -- ^ One report is generated for each field selected by
                         -- the configuration. Each report presents a field
                         -- with all the groups selected by the configuration as
                         -- columns or clusters. Output files are named using
@@ -276,7 +280,7 @@ data Config = Config
 
     -- | Filter and reorder benchmarks. 'selectBenchmarks' is provided with a
     -- function which is invoked with a sorting column name or index and a
-    -- 'GroupStyle', the function produces either the benchmark names and
+    -- 'ComparisonStyle', the function produces either the benchmark names and
     -- values corresponding to that column and style ('Right' constructor
     -- result) which can be used as a sorting criterion, or an error ('Left'
     -- constructor result). The 'Right' either value is a list of
@@ -285,7 +289,7 @@ data Config = Config
     -- 'Nothing', the presentation setting specified in the configuration is
     -- used.
     , selectBenchmarks
-        :: (SortColumn -> Maybe GroupStyle -> Either String [(String, Double)])
+        :: (SortColumn -> Maybe ComparisonStyle -> Either String [(String, Double)])
         -> [String]
     }
 
@@ -404,7 +408,7 @@ getUnitByFieldName fieldName fieldMin =
             False -> RelativeUnit "" 1
 
 -- returns (multiplier, units)
-fieldUnits :: String -> Double -> GroupStyle -> RelativeUnit
+fieldUnits :: String -> Double -> ComparisonStyle -> RelativeUnit
 fieldUnits fieldName fieldMin style =
     case style of
         Fraction          -> RelativeUnit "x" 1
@@ -437,7 +441,7 @@ fraction :: (Fractional a, Num a) => a -> a -> a
 fraction v1 v2 = v2 / v1
 
 cmpTransformColumns :: ReportType
-                    -> GroupStyle
+                    -> ComparisonStyle
                     -> Estimator
                     -> DiffStrategy
                     -- XXX we do not really need the benchmark name here
@@ -515,7 +519,7 @@ cmpTransformColumns rtype style estimator diffStrategy cols =
                      then (Mean, (n2, meanDiff))
                      else (Regression, (n2, regDiff))
 
-transformColumnNames :: GroupStyle -> [ReportColumn] -> [ReportColumn]
+transformColumnNames :: ComparisonStyle -> [ReportColumn] -> [ReportColumn]
 transformColumnNames _ [] = []
 transformColumnNames style columns@(h:t) =
     let withDiff name = colSuffix baseName h : map (colSuffix name) t
@@ -640,7 +644,7 @@ benchmarkCompareSanity benchmarks GroupMatrix{..} = do
 selectBenchmarksByField :: Config
                         -> [GroupMatrix]
                         -> [[(String, Double)]]
-                        -> (GroupStyle -> [[(String, Double)]])
+                        -> (ComparisonStyle -> [[(String, Double)]])
                         -> [String]
 selectBenchmarksByField Config{..} matrices columns colsByStyle =
     let bmnames = selectBenchmarks extractGroup
@@ -1112,7 +1116,7 @@ scaleAnalyzedField (RelativeUnit _ mult) AnalyzedField{..} =
     }
 
 prepareGroupsReport :: Config
-                    -> GroupStyle
+                    -> ComparisonStyle
                     -> Maybe FilePath
                     -> ReportType
                     -> Int
@@ -1209,7 +1213,7 @@ showStatusMessage cfg field outfile =
         Nothing -> return ()
 
 reportComparingGroups
-    :: GroupStyle
+    :: ComparisonStyle
     -> FilePath
     -> Maybe FilePath
     -> ReportType
