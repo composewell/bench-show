@@ -64,6 +64,32 @@ transformColumns columns =
             }]
      else columns
 
+-- We do not want to see the band of values between -1 and 1, in fact there are
+-- no values possible in that band.  Shift the positive values by -1 and
+-- negative values by +1 to map them to a 0 based scale on the graph. We change
+-- the labels as well accordingly.
+transformFractionValue :: ReportColumn -> ReportColumn
+transformFractionValue ReportColumn{..} =
+    ReportColumn
+        { colName = colName
+        , colUnit = colUnit
+        , colValues = map (\val ->
+            case val of
+                x | x >= 1 -> x - 1
+                x | x < (-1) -> x + 1
+                x -> error $ "BenchShow.Graph.transformFractionValue: unhandled: " ++ show x
+                ) colValues
+        }
+
+transformFractionLabels :: LinearAxisParams Double
+transformFractionLabels =
+    ((def :: (LinearAxisParams Double)) { _la_labelf = \xs ->
+        let shiftVals v = if v >= 0 then v + 1 else v - 1
+            replaceMinus ('-' : ys) = "1/" ++ ys
+            replaceMinus ys = ys
+        in fmap replaceMinus (_la_labelf def (map shiftVals xs))
+    })
+
 genGroupGraph :: RawReport -> Config -> IO ()
 genGroupGraph RawReport{..} cfg@Config{..} = do
     let outputFile  = fromMaybe undefined reportOutputFile
@@ -84,7 +110,17 @@ genGroupGraph RawReport{..} cfg@Config{..} = do
         layout_x_axis . laxis_generate .=
             autoIndexAxis (map (map replaceMu . colName) columns)
         layout_x_axis . laxis_style . axis_label_style . font_size .= 16
+
         layout_y_axis . laxis_style . axis_label_style . font_size .= 14
+        -- delete the -1x to 1x band of values which are not possible in case
+        -- of fraction style
+        cols' <-
+                case presentation of
+                    Groups (Relative Fraction _) -> do
+                        layout_y_axis . laxis_generate .= autoScaledAxis
+                                        transformFractionLabels
+                        return $ map transformFractionValue columns
+                    _ -> return columns
 
         layout <- get
         case _layout_legend layout of
@@ -116,7 +152,7 @@ genGroupGraph RawReport{..} cfg@Config{..} = do
                              (indexes, [], [])
 
         plot $ fmap plotBars $ bars reportRowIds
-            $ (addIndexes $ map colValues columns)
+            $ (addIndexes $ map colValues cols')
 
 -- | Presents the benchmark results in a CSV input file as graphical bar charts
 -- according to the provided configuration.  The first parameter is the input
