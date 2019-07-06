@@ -526,9 +526,9 @@ cmpTransformColumns rtype style estimator diffStrategy cols =
                      then (Mean, (n2, meanDiff))
                      else (Regression, (n2, regDiff))
 
-transformColumnNames :: GroupStyle -> [ReportColumn] -> [ReportColumn]
-transformColumnNames _ [] = []
-transformColumnNames style columns@(h:t) =
+columnNameByStyle :: GroupStyle -> [ReportColumn] -> [ReportColumn]
+columnNameByStyle _ [] = []
+columnNameByStyle style columns@(h:t) =
     let withDiff name = colSuffix baseName h : map (colSuffix name) t
     in case style of
             Relative Diff _              | length columns > 1 -> withDiff diffName
@@ -540,9 +540,15 @@ transformColumnNames style columns@(h:t) =
 
     where
     colSuffix xl col = col { colName = xl (colName col) }
-    baseName        = (++ "(base)")
-    diffName        = (++ "(-base)")
-    fracName        = (++ "(/base)")
+    baseName        = id -- (++ "(base)")
+    diffName        = (++ " - " ++ colName h) -- "(-base)")
+    fracName        = (++ "/" ++ colName h) -- "/base")
+
+columnNameByUnit :: [RelativeUnit] -> [ReportColumn] -> [ReportColumn]
+columnNameByUnit units columns =
+    let applyUnit col (RelativeUnit label _) =
+            col { colName = colName col ++ inParens label }
+    in zipWith applyUnit columns units
 
 -- Represents the data for a single benchmark run
 data GroupMatrix = GroupMatrix
@@ -1188,9 +1194,7 @@ prepareGroupsReport cfg@Config{..} style outfile rtype runs field matrices =
                             if runs > 1
                             then "(" ++ show (groupIndex x) ++ ")"
                             else ""
-                    applyUnit name (RelativeUnit label _) =
-                        name ++ inParens label
-                in zipWith applyUnit (map withSuffix matrices) mkColUnits
+                in map withSuffix matrices
 
         columns = getZipList $ ReportColumn
                     <$> ZipList mkColNames
@@ -1206,8 +1210,9 @@ prepareGroupsReport cfg@Config{..} style outfile rtype runs field matrices =
             { reportOutputFile = outfile
             , reportIdentifier = field
             , reportRowIds     = benchmarks
-            , reportColumns    = omitBaseline $
-                transformColumnNames style columns
+            , reportColumns    = omitBaseline
+                $ columnNameByUnit mkColUnits
+                $ columnNameByStyle style columns
             , reportAnalyzed   = omitBaseline $
                 zipWith (\x y -> map (scaleAnalyzedField x) y)
                         mkColUnits origSortedCols
