@@ -2,24 +2,23 @@
 
 ### Breaking Changes
 
-* Config fields `title` and `titleAnnotations` have been removed, please use
-  `mkTitle` instead.
-* The type of `GroupStyle` has changed, existing usage will have to adapt to
-  the new type.
 * The signature of `selectBenchmarks` has changed, use 'Nothing' as the second
-  argument to port old code. The function argument to generate the benchmarks
-  now takes one more argument of type `GroupStyle`. It is useful when we want
-  to sort the benchmarks in a way independent of the actual presentation style.
-  For example we may want to sort the benchmarks using `PercentDiff` but the
-  presentation style in the config could be `Absolute` so that we show absolute
-  values in the report.
-* Change the default `diffStrategy` to `SingleEstimator` instead of
+  argument of the benchmark generator function to port old code without any
+  impact.
+* Removed the broken 'Percent' constructor from `GroupStyle`. Use `PercentDiff`
+  instead to make relative comparisons.
+* The behavior of `PercentDiff` has changed, it now computes the % from the
+  lower value instead of from the baseline.
+* The default `diffStrategy` has been changed to `SingleEstimator` instead of
   `MinEstimator`.
+
+### Deprecations
+
+* Config fields `title` and `titleAnnotations` have been deprecated, please use
+  `mkTitle` instead.
 
 ### Bug Fixes
 
-* Fix `GroupStyle Percent`, it showed incorrect data for baseline column and
-  other groups as well and one of the groups was missing.
 * `GroupStyle Absolute` now honors the `MinEstimator` setting. When
   `MinEstimator` is set, the groups being compared to baseline now display the
   value based on the estimator which provides closest estimate to the baseline.
@@ -28,13 +27,14 @@
 
 * Add a CLI executable to generate textual reports and graphs from criterion or
   gauge csv output file.
-* Add `PercentDiffLower` and `PercentDiffHigher` diff options to show the
-  difference as a percentage of the lower or the higher of the two values.
-* Add `Fraction` as a comparison option, the group being compared is shown as a
-  fraction of the baseline.
+* Add `Multiples` as a comparison option, the group being compared is shown as
+  a multiple of the baseline.
 * Add ability to omit the baseline group from the results when we are doing a
   relative comparison among groups.
-* Add `mkTitle` config option to use a function for generating report title.
+* Add the ability to sort the benchmarks using a different criterion than the
+  one used to present the benchmarks in the final report output.
+* Add `mkTitle` config option to use a function for generating a custom report
+  title.
 
 ## 0.2.2
 

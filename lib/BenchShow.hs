@@ -52,12 +52,12 @@
 -- from the textual report, the rows (i.e.  the benchmarks) are represented as
 -- bars in the cluster.
 --
--- When the columns are groups, each report consists of results for a single
--- benchmarking field for different benchmark groups.  Using 'ComparisonStyle', we
--- can further specify how we want to present the results the groups. We can
+-- When the columns are groups, each report presents the results for a single
+-- benchmarking field for different benchmark groups.  Using 'GroupStyle', we
+-- can further specify how we want to present the results of the groups. We can
 -- either present absolute values of the field for each group or we can make
--- the first group as a baseline and present differences from the baseline for
--- the subsequent groups.
+-- the first group as a baseline showing absolute values and present difference
+-- from the baseline for the subsequent groups.
 --
 -- When the columns are fields, each report consists of results for a single
 -- benchmarking group. Fields cannot be compared like groups because they are
@@ -83,9 +83,8 @@
 -- by these tests.
 
 module BenchShow
-    ( ComparisonStyle(..)
+    ( GroupStyle(..)
     , Presentation(..)
-    , GroupStyle(..)
     , TitleAnnotation (..)
     , Estimator (..)
     , DiffStrategy (..)

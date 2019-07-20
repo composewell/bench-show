@@ -277,7 +277,7 @@ import BenchShow
 --                     reverse
 --                   $ map fst
 --                   $ sortBy (comparing snd)
---                   $ either error id $ f $ 'ColumnIndex' 1
+--                   $ either error id $ f ('ColumnIndex' 1) Nothing
 --          }
 -- @
 --
@@ -328,7 +328,7 @@ import BenchShow
 --                     reverse
 --                   $ map fst
 --                   $ sortBy (comparing snd)
---                   $ either error id $ f $ 'ColumnIndex' 1
+--                   $ either error id $ f ('ColumnIndex' 1) Nothing
 --          }
 -- @
 --

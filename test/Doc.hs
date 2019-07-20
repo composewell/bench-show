@@ -26,63 +26,52 @@ main = do
         defaultConfig
         { classifyBenchmark = classifier }
 
-    graph "test/results-doc.csv" "docs/grouped-percent"
-        defaultConfig
-        { classifyBenchmark = classifier
-        , presentation = Groups (Relative Percent True)
-        }
-    report "test/results-doc.csv" Nothing
-        defaultConfig
-        { classifyBenchmark = classifier
-        , presentation = Groups (Relative Percent True)
-        }
-
     graph "test/results-doc.csv" "docs/grouped-delta"
         defaultConfig
         { classifyBenchmark = classifier
-        , presentation = Groups (Relative Diff True)
+        , presentation = Groups Diff
         }
     report "test/results-doc.csv" Nothing
         defaultConfig
         { classifyBenchmark = classifier
-        , presentation = Groups (Relative Diff True)
+        , presentation = Groups Diff
         }
 
     graph "test/results-doc.csv" "docs/grouped-percent-delta"
         defaultConfig
         { classifyBenchmark = classifier
-        , presentation = Groups (Relative PercentDiff True)
+        , presentation = Groups PercentDiff
         }
     report "test/results-doc.csv" Nothing
         defaultConfig
         { classifyBenchmark = classifier
-        , presentation = Groups (Relative PercentDiff True)
+        , presentation = Groups PercentDiff
         }
 
     graph "test/results-doc.csv" "docs/grouped-percent-delta"
         defaultConfig
         { classifyBenchmark = classifier
-        , presentation = Groups (Relative PercentDiff True)
+        , presentation = Groups PercentDiff
         , estimator = Regression
         }
     report "test/results-doc.csv" Nothing
         defaultConfig
         { classifyBenchmark = classifier
-        , presentation = Groups (Relative PercentDiff True)
+        , presentation = Groups PercentDiff
         , estimator = Regression
         }
 
     graph "test/results-doc.csv" "docs/grouped-single-estimator"
         defaultConfig
         { classifyBenchmark = classifier
-        , presentation = Groups (Relative PercentDiff True)
+        , presentation = Groups PercentDiff
         , estimator = Regression
         , diffStrategy = SingleEstimator
         }
     report "test/results-doc.csv" Nothing
         defaultConfig
         { classifyBenchmark = classifier
-        , presentation = Groups (Relative PercentDiff True)
+        , presentation = Groups PercentDiff
         , estimator = Regression
         , diffStrategy = SingleEstimator
         , verbose = True
@@ -91,7 +80,7 @@ main = do
     graph "test/results-doc.csv" "docs/grouped-percent-delta-sorted"
         defaultConfig
         { classifyBenchmark = classifier
-        , presentation = Groups (Relative PercentDiff True)
+        , presentation = Groups PercentDiff
         , selectBenchmarks =
               \f ->
                     reverse
@@ -102,7 +91,7 @@ main = do
     report "test/results-doc.csv" Nothing
         defaultConfig
         { classifyBenchmark = classifier
-        , presentation = Groups (Relative PercentDiff True)
+        , presentation = Groups PercentDiff
         , selectBenchmarks =
               \f ->
                     reverse
@@ -116,7 +105,7 @@ main = do
         "docs/regression-percent-descending"
         defaultConfig
         { classifyBenchmark = classifier
-        , presentation = Groups (Relative PercentDiff True)
+        , presentation = Groups PercentDiff
         , selectBenchmarks =
               \f ->
                     reverse
@@ -129,7 +118,7 @@ main = do
         Nothing
         defaultConfig
         { classifyBenchmark = classifier
-        , presentation = Groups (Relative PercentDiff True)
+        , presentation = Groups PercentDiff
         , selectBenchmarks =
               \f ->
                     reverse

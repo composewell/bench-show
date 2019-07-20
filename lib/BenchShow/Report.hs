@@ -27,25 +27,26 @@ import Text.Printf (printf)
 import BenchShow.Common
 import BenchShow.Analysis
 
-isPercentDiff :: ComparisonStyle -> Bool
-isPercentDiff PercentDiff = True
-isPercentDiff PercentDiffLower = True
-isPercentDiff PercentDiffHigher = True
-isPercentDiff _ = False
-
 -- XXX in comparative reports render lower than baseline in green and higher
 -- than baseline in red
 genGroupReport :: RawReport -> Config -> IO ()
-genGroupReport RawReport{..} Config{..} = do
-    putStrLn $ maybe "" (\f -> f reportIdentifier) mkTitle
+genGroupReport RawReport{..} cfg@Config{..} = do
+    let diffStr =
+            if length reportColumns > 1
+            then diffString presentation diffStrategy
+            else Nothing
+    case mkTitle of
+        Just _ -> putStrLn $ maybe "" (\f -> f reportIdentifier) mkTitle
+        Nothing -> putStrLn $ makeTitle reportIdentifier diffStr cfg
+
     let benchcol  = "Benchmark" : reportRowIds
         groupcols =
             let firstCol : tailCols = reportColumns
                 colorCol ReportColumn{..} =
                     let f x = case presentation of
-                                Groups (Relative Diff _) ->
+                                Groups Diff ->
                                     if x > 0 then dullred else dullgreen
-                                Groups (Relative grp _) | isPercentDiff grp ->
+                                Groups PercentDiff ->
                                     if x > fromIntegral threshold
                                     then dullred
                                     else if x < (-1) * fromIntegral threshold
@@ -59,8 +60,8 @@ genGroupReport RawReport{..} Config{..} = do
                                     $ renderGroupCol
                                     $ showCol col estimators analyzed
                     in case presentation of
-                        Groups (Relative Diff _) -> colored
-                        Groups (Relative grp _) | isPercentDiff grp -> colored
+                        Groups Diff        -> colored
+                        Groups PercentDiff -> colored
                         _ -> regular
             in renderGroupCol (showFirstCol firstCol)
              : case reportEstimators of
@@ -133,14 +134,14 @@ genGroupReport RawReport{..} Config{..} = do
                         then printf "+%.2f" val
                         else printf "%.2f" val
                 in case presentation of
-                        Groups (Relative Diff _) -> showDiff
-                        Groups (Relative grp _) | isPercentDiff grp -> showDiff
+                        Groups Diff        -> showDiff
+                        Groups PercentDiff -> showDiff
                         _ -> printf "%.2f" val
 
             showEstAnnot est =
                 case presentation of
-                    Groups (Relative Diff _) -> showEstimator est
-                    Groups (Relative grp _) | isPercentDiff grp -> showEstimator est
+                    Groups Diff        -> showEstimator est
+                    Groups PercentDiff -> showEstimator est
                     _ -> ""
 
         in case estimators of

@@ -109,15 +109,11 @@ main = do
     graph "test/results.csvraw" "csvraw-delta"
             cfg { fieldRanges = [("mean", -20000, 50000)]
                 , fieldTicks = [("mean", TickCount 7)]
-                , presentation = Groups (Relative Diff True)
-                , selectFields = (`intersect` ["time"])
-                }
-    graph "test/results.csvraw" "csvraw-percent"
-            cfg { presentation = Groups (Relative Percent True)
+                , presentation = Groups Diff
                 , selectFields = (`intersect` ["time"])
                 }
     graph "test/results.csvraw" "csvraw-percent-delta"
-            cfg { presentation = Groups (Relative PercentDiff True)
+            cfg { presentation = Groups PercentDiff
                 , selectFields = (`intersect` ["time"])
                 }
 
@@ -148,15 +144,11 @@ main = do
                 }
 
     report "test/results.csv" Nothing
-            cfg { presentation = Groups (Relative Percent True)
-                }
-
-    report "test/results.csv" Nothing
-            cfg { presentation = Groups (Relative PercentDiff True)
+            cfg { presentation = Groups PercentDiff
                 , selectBenchmarks = \g ->
                     either error (map fst . sortBy (compare `on` snd))
                            (g (ColumnIndex 1) Nothing)
                 }
     report "test/results.csv" Nothing
-            cfg { presentation = Groups (Relative Diff True)
+            cfg { presentation = Groups Diff
                 }

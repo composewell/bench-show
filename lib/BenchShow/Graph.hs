@@ -101,7 +101,13 @@ genGroupGraph RawReport{..} cfg@Config{..} = do
         replaceMu x = x
         unitLabel = map replaceMu ulabel
         columns = transformColumns reportColumns
-        atitle = maybe "" (\f -> f reportIdentifier) mkTitle
+        diffStr =
+            if length reportColumns > 1
+            then diffString presentation diffStrategy
+            else Nothing
+        atitle = case mkTitle of
+            Just f -> f reportIdentifier
+            Nothing -> makeTitle reportIdentifier diffStr cfg
 
     toFile def outputFile $ do
         layout_title .= atitle
@@ -116,7 +122,7 @@ genGroupGraph RawReport{..} cfg@Config{..} = do
         -- of fraction style
         cols' <-
                 case presentation of
-                    Groups (Relative Fraction _) -> do
+                    Groups Multiples -> do
                         layout_y_axis . laxis_generate .= autoScaledAxis
                                         transformFractionLabels
                         return $ map transformFractionValue columns

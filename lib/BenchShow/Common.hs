@@ -14,7 +14,6 @@
 
 module BenchShow.Common
     ( Presentation(..)
-    , ComparisonStyle (..)
     , GroupStyle(..)
     , FieldTick (..)
     , SortColumn (..)
@@ -34,6 +33,8 @@ module BenchShow.Common
     , ReportColumn(..)
     , RawReport(..)
     , ReportType(..)
+    , diffString
+    , makeTitle
     , prepareToReport
     , reportComparingGroups
     , reportPerGroup
@@ -84,35 +85,27 @@ filterSanity label old new = do
 
 data ReportType = TextReport | GraphicalChart
 
-data ComparisonStyle =
-      Diff        -- ^ Show baseline group values as usual and values for
-                  -- the subsequent groups as differences from the baseline
-    | Fraction    -- ^ Show the subsequent group values as a fraction of the
-                  -- baseline group's value.
-    | Percent     -- ^ Show baseline group values as 100% and values for
-                  -- subsequent groups as a percentage of the baseline
-    | PercentDiff -- ^ Baseline group values are shown in regular units.
-                  -- Subsequent groups show (baseline - group) as a percentage
-                  -- of baseline
-    | PercentDiffLower -- ^ Baseline group shows absolute values.
-                       -- Subsequent groups show the diff (baseline - group) as
-                       -- a percentage of the lower of the two values.
-    | PercentDiffHigher -- ^ Baseline group shows absolute values.
-                        -- Subsequent groups show the diff (baseline - group)
-                        -- as a percentage of the higher of the two values.
-    deriving (Eq, Show, Read)
-
 -- | How to show the results for multiple benchmark groups presented in columns
--- or bar chart clusters.
+-- or bar chart clusters. In relative comparisons, the first group is
+-- considered as the baseline and the subsequent groups are compared against
+-- the baseline.
 --
+-- /Definition changed in 0.3.0/
 -- @since 0.2.0
 data GroupStyle =
-      Absolute    -- ^ Show absolute field values for all groups
-    | Relative ComparisonStyle Bool -- ^ The first group is considered as the
-    -- baseline and the subsequent groups are compared against the baseline
-    -- using a 'ComparisonStyle'. If the second argument is 'True' the baseline
-    -- group is also included in the output otherwise the baseline group is
-    -- omitted.
+      Absolute    -- ^ Show absolute values of the field for all groups
+    | Diff        -- ^ Show baseline group as absolute values and values for
+                  -- the subsequent groups as difference from the baseline
+    | PercentDiff -- ^ If the value of the group being compared is higher than
+                  -- the baseline then display the difference as percentage of
+                  -- baseline otherwise display the difference as a percentage
+                  -- of the group being compared.
+    | Multiples   -- ^ If the value of the group being compared is higher than
+                  -- the baseline then display @+(value / baseline value)@
+                  -- otherwise display @-(baseline value / value)@. This
+                  -- provides a normalized comparison independent of the
+                  -- absolute value of a benchmark. Note that 'Multiples' can
+                  -- be directly computed using 'PercentDiff' and vice-versa.
     deriving (Eq, Show, Read)
 
 -- | How to present the reports or graphs. Each report presents a number of
@@ -198,6 +191,7 @@ data DiffStrategy =
 -- report or graph.
 --
 -- @since 0.2.2
+{-# DEPRECATED TitleAnnotation "Please use mkTitle to make a custom title" #-}
 data TitleAnnotation = TitleField | TitleEstimator | TitleDiff
     deriving (Eq, Show, Read)
 
@@ -219,6 +213,17 @@ data Config = Config
     -- is the benchmark field name for which the report is being made.
     , mkTitle  :: Maybe (String -> String)
 
+    -- | /DEPRECATED: Please use 'mkTitle' instead./
+    --
+    -- Report title, more information like the plotted field name or
+    -- the presentation style may be added to it.
+    , title  :: Maybe String
+
+    -- | /DEPRECATED: Please use 'mkTitle' instead./
+    --
+    -- Additional annotations to be added to the title
+    , titleAnnotations :: [TitleAnnotation]
+
     -- | How to determine the layout of the report or the chart.
     , presentation :: Presentation
 
@@ -231,6 +236,10 @@ data Config = Config
 
     -- | Strategy to compare two runs or groups of benchmarks.
     , diffStrategy  :: DiffStrategy
+
+    -- | Omit the baseline group in normalized relative comparisons i.e.
+    -- when the 'GroupStyle' is 'PercentDiff' or 'Multiples'.
+    , omitBaseline :: Bool
 
     ---------------------------------------------------------------------------
     -- Fields (Columns)
@@ -278,16 +287,20 @@ data Config = Config
     -- Benchmarks (Rows)
     ---------------------------------------------------------------------------
 
-    -- | Filter and reorder benchmarks. 'selectBenchmarks' is provided with a
-    -- function which is invoked with a sorting column name or index and a
-    -- 'GroupStyle', the function produces either the benchmark names and
-    -- values corresponding to that column and style ('Right' constructor
-    -- result) which can be used as a sorting criterion, or an error ('Left'
-    -- constructor result). The 'Right' either value is a list of
-    -- benchmarks in the order in which they are to be rendered. The style is
-    -- ignored when the report presentation is not 'Groups'. When style is
-    -- 'Nothing', the presentation setting specified in the configuration is
-    -- used.
+    -- | Filter and reorder benchmarks. 'selectBenchmarks' takes a function
+    -- argument, the function is invoked with a sorting column name or index
+    -- and a 'GroupStyle'. The output of the function is either a 'Right' value
+    -- consisting of tuples of the benchmark names and values corresponding to
+    -- the given column and style or a 'Left' value indicating an error.
+    -- 'selectBenchmarks' can inspect these benchmarks and there values to
+    -- produce a filtered and sorted list of benchmark names that are to be
+    -- rendered.
+    --
+    -- The style argument is ignored when the report presentation is not
+    -- 'Groups'. When style is 'Nothing', the presentation setting specified in
+    -- the configuration is used.
+    --
+    -- /Signature changed in 0.3.0/
     , selectBenchmarks
         :: (SortColumn -> Maybe GroupStyle -> Either String [(String, Double)])
         -> [String]
@@ -308,6 +321,7 @@ data Config = Config
 --  estimator         = Median
 --  threshold         = 3
 --  diffStrategy      = SingleEstimator
+--  omitBaseline      = False
 --  selectFields      = filter (flip elem ["time", "mean", "maxrss"] . map toLower)
 --  fieldRanges       = []
 --  fieldTicks        = []
@@ -321,11 +335,14 @@ defaultConfig :: Config
 defaultConfig = Config
     { verbose           = False
     , mkTitle           = Nothing
+    , title             = Nothing
+    , titleAnnotations  = [TitleField]
     , outputDir         = Nothing
     , presentation      = Groups Absolute
     , estimator         = Median
     , threshold         = 3
     , diffStrategy      = SingleEstimator
+    , omitBaseline      = False
     , selectFields      = filter (flip elem ["time", "mean", "maxrss"] . map toLower)
     , fieldRanges       = []
     , fieldTicks        = []
@@ -410,11 +427,8 @@ getUnitByFieldName fieldName fieldMin =
 fieldUnits :: String -> Double -> GroupStyle -> RelativeUnit
 fieldUnits fieldName fieldMin style =
     case style of
-        Relative Fraction _          -> RelativeUnit "x" 1
-        Relative Percent _           -> RelativeUnit "%" 1
-        Relative PercentDiff _       -> RelativeUnit "%" 1
-        Relative PercentDiffLower _  -> RelativeUnit "%" 1
-        Relative PercentDiffHigher _ -> RelativeUnit "%" 1
+        Multiples   -> RelativeUnit "x" 1
+        PercentDiff -> RelativeUnit "%" 1
         _ -> getUnitByFieldName fieldName fieldMin
 
 -------------------------------------------------------------------------------
@@ -424,17 +438,8 @@ fieldUnits fieldName fieldMin style =
 absoluteDiff :: Num a => a -> a -> a
 absoluteDiff v1 v2 = v2 - v1
 
-percentDiff :: (Fractional a, Num a) => a -> a -> a
-percentDiff v1 v2 = ((v2 - v1) * 100) / v1
-
-percentDiffLower :: (Fractional a, Num a, Ord a) => a -> a -> a
-percentDiffLower v1 v2 = ((v2 - v1) * 100) / min v1 v2
-
-percentDiffHigher :: (Fractional a, Num a, Ord a) => a -> a -> a
-percentDiffHigher v1 v2 = ((v2 - v1) * 100) / max v1 v2
-
-percent :: (Fractional a, Num a) => a -> a -> a
-percent v1 v2 = (v2 * 100) / v1
+percentDiff :: (Fractional a, Num a, Ord a) => a -> a -> a
+percentDiff v1 v2 = ((v2 - v1) * 100) / min v1 v2
 
 -- We map a fraction x between 0 and 1 to a negative 1/x for plotting on an
 -- equal and opposite scale.
@@ -498,13 +503,10 @@ cmpTransformColumns rtype style estimator diffStrategy cols =
                 SingleEstimator ->
                    (Nothing, baseCol : cmpWith f)
     in case style of
-            Absolute          -> diffWith (\_ x -> x)
-            Relative Fraction _          -> relativeDiffWith 1 fraction
-            Relative Diff _              -> diffWith absoluteDiff
-            Relative Percent _           -> relativeDiffWith 100 percent
-            Relative PercentDiff _       -> relativeDiffWith 0 percentDiff
-            Relative PercentDiffLower _  -> relativeDiffWith 0 percentDiffLower
-            Relative PercentDiffHigher _ -> relativeDiffWith 0 percentDiffHigher
+            Absolute    -> diffWith (\_ x -> x)
+            Diff        -> diffWith absoluteDiff
+            PercentDiff -> relativeDiffWith 100 percentDiff
+            Multiples   -> relativeDiffWith 1 fraction
     where
         verify a b = if a then b else error "bug: benchmark names mismatch"
         transformVals = map (map (second (getAnalyzedValue estimator)))
@@ -531,11 +533,9 @@ columnNameByStyle _ [] = []
 columnNameByStyle style columns@(h:t) =
     let withDiff name = colSuffix baseName h : map (colSuffix name) t
     in case style of
-            Relative Diff _              | length columns > 1 -> withDiff diffName
-            Relative Fraction _          | length columns > 1 -> withDiff fracName
-            Relative PercentDiff _       | length columns > 1 -> withDiff diffName
-            Relative PercentDiffLower _  | length columns > 1 -> withDiff diffName
-            Relative PercentDiffHigher _ | length columns > 1 -> withDiff diffName
+            Diff        | length columns > 1 -> withDiff diffName
+            Multiples   | length columns > 1 -> withDiff fracName
+            PercentDiff | length columns > 1 -> withDiff diffName
             _ -> columns
 
     where
@@ -1174,9 +1174,9 @@ prepareGroupsReport cfg@Config{..} style outfile rtype runs field matrices =
             in case (rtype, style) of
                 -- In case of percentDiff in TextReport we use absolute
                 -- values in the baseline column, so the unit is different.
-                (_, Absolute) -> mkAbsoluteUnit
-                (_, Relative Diff _)     -> mkAbsoluteUnit
-                (TextReport, _)  -> mkPercentColUnitText
+                (_, Absolute)   -> mkAbsoluteUnit
+                (_, Diff)       -> mkAbsoluteUnit
+                (TextReport, _) -> mkPercentColUnitText
                 (GraphicalChart, _) | length matrices == 1 ->
                     mkPercentColUnitGraph
                 (GraphicalChart, _) -> mkAbsoluteUnit
@@ -1201,29 +1201,36 @@ prepareGroupsReport cfg@Config{..} style outfile rtype runs field matrices =
                     <*> ZipList mkColUnits
                     <*> ZipList mkColValues
 
-        omitBaseline xs =
-            case style of
-                Relative _ False | length matrices > 1 -> tail xs
-                _ -> xs
+        removeBaseline xs =
+            let rel = case style of
+                        Absolute -> False
+                        Diff -> False
+                        PercentDiff -> True
+                        Multiples -> True
+            in if omitBaseline && rel && length matrices > 1
+               then tail xs
+               else xs
 
     in RawReport
             { reportOutputFile = outfile
             , reportIdentifier = field
             , reportRowIds     = benchmarks
-            , reportColumns    = omitBaseline
+            , reportColumns    = removeBaseline
                 $ columnNameByUnit mkColUnits
                 $ columnNameByStyle style columns
-            , reportAnalyzed   = omitBaseline $
+            , reportAnalyzed   = removeBaseline $
                 zipWith (\x y -> map (scaleAnalyzedField x) y)
                         mkColUnits origSortedCols
-            , reportEstimators = fmap omitBaseline estimators
+            , reportEstimators = fmap removeBaseline estimators
             }
 
 showStatusMessage :: Show a => Config -> String -> Maybe a -> IO ()
 showStatusMessage cfg field outfile =
     let atitle = case mkTitle cfg of
                     Just f -> " [" ++ f field ++ "]"
-                    Nothing -> ""
+                    Nothing ->
+                        " [" ++ makeTitle field (diffString (presentation cfg)
+                                 (diffStrategy cfg)) cfg ++ "]"
     in case outfile of
         Just path ->
             putStrLn $ "Creating chart"
@@ -1325,5 +1332,41 @@ reportPerGroup dir outputFile rtype cfg@Config{..} mkReport group = do
 -- Utility functions
 -------------------------------------------------------------------------------
 
+showDiffStrategy :: DiffStrategy -> String
+showDiffStrategy s =
+    case s of
+        SingleEstimator -> ""
+        MinEstimator -> "using min estimator"
+
+diffString :: Presentation -> DiffStrategy -> Maybe String
+diffString style s =
+    case style of
+        Groups Diff -> Just $ "Diff from Baseline " ++ showDiffStrategy s
+        Groups PercentDiff -> Just $ "Diff % of Lower " ++ showDiffStrategy s
+        Groups Multiples -> Just $ "Multiples of Baseline " ++ showDiffStrategy s
+        Groups Absolute -> Nothing
+        Solo -> Nothing
+        Fields -> Nothing
+
 inParens :: String -> String
 inParens str = "(" ++ str ++ ")"
+
+showEstimator :: Estimator -> String
+showEstimator est =
+    case est of
+        Mean       -> "Mean"
+        Median     -> "Median"
+        Regression -> "Regression Coeff."
+
+addAnnotation :: String -> Maybe String -> Config -> TitleAnnotation -> String
+addAnnotation field diff Config{..} annot =
+      inParens
+    $ case annot of
+        TitleField -> field
+        TitleEstimator -> showEstimator estimator
+        TitleDiff -> maybe "" inParens diff
+
+makeTitle :: String -> Maybe String -> Config -> String
+makeTitle field diff cfg@Config{..} =
+       fromMaybe "" title
+       ++ concatMap (addAnnotation field diff cfg) titleAnnotations

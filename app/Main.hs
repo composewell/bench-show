@@ -2,6 +2,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 
+{-# OPTIONS_GHC -Wno-deprecations #-}
+
 -- |
 -- Module      : Main
 -- Copyright   : (c) 2019 Composewell Technologies
@@ -47,15 +49,15 @@ pTitle = strOption
     <> metavar "STRING"
     <> help "Title for the report" )
 
-pTitleAnnotation :: Parser Bool
-pTitleAnnotation = switch $
-       long "title-suffix-field"
-    <> help ("Add the benchmark field name being plotted to the title")
+pTitleAnnotation :: Parser TitleAnnotation
+pTitleAnnotation = option auto $
+       long "title-annotations"
+    <> help ("*TitleField*|TitleEstimator|TitleDiff")
 
 pPresentation :: Parser Presentation
 pPresentation = option auto $
        long "presentation"
-    <> help ("Solo|Fields|*Groups* <*Absolute*|Diff|Fraction|Percent|PercentDiffLower|PercentDiffHigher>")
+    <> help ("Solo|Fields|*Groups* <*Absolute*|Diff|PercentDiff|Multiples")
 
 pEstimator :: Parser Estimator
 pEstimator = option auto $
@@ -73,6 +75,11 @@ pDiffStrategy = option auto $
        long "diff-strategy"
     <> help ("*SingleEstimator*|MinEstimator")
 
+pOmitBaseline :: Parser Bool
+pOmitBaseline = switch $
+       long "omit-baseline"
+    <> help "omit the baseline column in relative comparisons"
+
 -------------------------------------------------------------------------------
 -- Build a Config parser for common options
 -------------------------------------------------------------------------------
@@ -85,16 +92,18 @@ fMaybe a = fmap (maybe a id)
 parseOptional :: (Config -> a) -> Parser a -> Parser a
 parseOptional def parser = fMaybe (def defaultConfig) (optional parser)
 
--- XXX Add the ability to annotate the title with field name
 pConfig :: Parser Config
 pConfig = Config
     <$> parseOptional verbose pVerbose
     <*> optional pOutputDir
-    <*> fmap (\x -> fmap (\tstr -> \_ -> tstr) x) (optional pTitle)
+    <*> pure Nothing
+    <*> optional pTitle
+    <*> many pTitleAnnotation
     <*> parseOptional presentation pPresentation
     <*> parseOptional estimator pEstimator
     <*> parseOptional threshold pThreshold
     <*> parseOptional diffStrategy pDiffStrategy
+    <*> parseOptional omitBaseline pOmitBaseline
     <*> pure (selectFields defaultConfig)
     <*> pure (fieldRanges defaultConfig)
     <*> pure (fieldTicks defaultConfig)
