@@ -27,6 +27,17 @@ import Text.Printf (printf)
 import BenchShow.Common
 import BenchShow.Analysis
 
+multiplesToPercentDiff :: Double -> Double
+multiplesToPercentDiff x = (if x > 0 then x - 1 else x + 1) * 100
+
+colorCode :: Word -> Double -> Doc -> Doc
+colorCode thresh x =
+    if x > fromIntegral thresh
+    then dullred
+    else if x < (-1) * fromIntegral thresh
+         then dullgreen
+         else id
+
 -- XXX in comparative reports render lower than baseline in green and higher
 -- than baseline in red
 genGroupReport :: RawReport -> Config -> IO ()
@@ -46,12 +57,10 @@ genGroupReport RawReport{..} cfg@Config{..} = do
                     let f x = case presentation of
                                 Groups Diff ->
                                     if x > 0 then dullred else dullgreen
-                                Groups PercentDiff ->
-                                    if x > fromIntegral threshold
-                                    then dullred
-                                    else if x < (-1) * fromIntegral threshold
-                                         then dullgreen
-                                         else id
+                                Groups PercentDiff -> colorCode threshold x
+                                Groups Multiples ->
+                                    let y = multiplesToPercentDiff x
+                                    in colorCode threshold y
                                 _ -> id
                     in map f colValues
                 renderTailCols estimators col analyzed =
@@ -62,6 +71,7 @@ genGroupReport RawReport{..} cfg@Config{..} = do
                     in case presentation of
                         Groups Diff        -> colored
                         Groups PercentDiff -> colored
+                        Groups Multiples   -> colored
                         _ -> regular
             in renderGroupCol (showFirstCol firstCol)
              : case reportEstimators of
@@ -136,12 +146,17 @@ genGroupReport RawReport{..} cfg@Config{..} = do
                 in case presentation of
                         Groups Diff        -> showDiff
                         Groups PercentDiff -> showDiff
+                        Groups Multiples ->
+                            if val > 0
+                            then printf "%.2f" val
+                            else printf "1/%.2f" (negate val)
                         _ -> printf "%.2f" val
 
             showEstAnnot est =
                 case presentation of
                     Groups Diff        -> showEstimator est
                     Groups PercentDiff -> showEstimator est
+                    Groups Multiples   -> showEstimator est
                     _ -> ""
 
         in case estimators of
