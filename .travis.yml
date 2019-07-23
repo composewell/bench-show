@@ -141,7 +141,7 @@ matrix:
     addons: {apt: {packages: [cabal-install-2.4], sources: [hvr-ghc]}}
 
   - env: BUILD=stack RESOLVER=lts-11 GHCVER=8.2 STACK_YAML=stack-8.2.yaml
-   addons: {apt: {packages: [cabal-install-2.4], sources: [hvr-ghc]}}
+    addons: {apt: {packages: [cabal-install-2.4], sources: [hvr-ghc]}}
 
   #- env: BUILD=stack RESOLVER=lts-9 GHCVER=8.0
   # addons: {apt: {packages: [cabal-install-2.4], sources: [hvr-ghc]}}
