@@ -147,7 +147,7 @@ executable bench-show
         , split                >= 0.2     && < 0.3
         , statistics           >= 0.15    && < 0.16
         , vector               >= 0.10    && < 0.13
-        , semigroups           >= 0.18    && < 0.19
+        , semigroups           >= 0.18    && < 0.20
         , optparse-applicative >= 0.14.2  && < 0.14.4
         , optparse-simple      >= 0.1.0   && < 0.2
         , bench-show
