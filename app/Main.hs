@@ -1,8 +1,11 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 
+#if __GLASGOW_HASKELL__ >= 800
 {-# OPTIONS_GHC -Wno-deprecations #-}
+#endif
 
 -- |
 -- Module      : Main
@@ -164,8 +167,8 @@ cmdGraph GraphOpts{..} cfg = graph graphInput graphOutput cfg
 cmdLineParser :: Parser Config -> IO ()
 cmdLineParser p = do
     (cfg, handler) <- simpleOptions $(simpleVersion version)
-        "Generate reports and graphs from gauge or criterion output.\n\
-        \Default values are shown as *DEFAULT*."
+        ("Generate reports and graphs from gauge or criterion output.\n" ++
+        "Default values are shown as *DEFAULT*.")
         "" p cmds
 
     handler cfg
