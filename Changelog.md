@@ -1,3 +1,10 @@
+## Unreleased
+
+### Bug Fixes
+
+* `report` and `graph` generation now works even when number of
+  samples is less than 3
+
 ## 0.3.0
 
 ### Breaking Changes
