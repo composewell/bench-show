@@ -307,7 +307,7 @@ analyzeBenchmark randGen pcols rcols samples = do
             return (replicate n Nothing, replicate n Nothing)
 
     (means, devs) <-
-        if useBootstrap
+        if useBootstrap && length samples >= 3
         then do
             (ms, ds) <- fmap unzip $ estimateMeanAndStdDev randGen vectors
             return (map estPoint ms, map estPoint ds)
