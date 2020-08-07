@@ -439,7 +439,10 @@ absoluteDiff :: Num a => a -> a -> a
 absoluteDiff v1 v2 = v2 - v1
 
 percentDiff :: (Fractional a, Num a, Ord a) => a -> a -> a
-percentDiff v1 v2 = ((v2 - v1) * 100) / min v1 v2
+percentDiff v1 v2 = let minval = min v1 v2
+                    in case minval of
+                         0 -> error "Benchmark.Common.percentage: zero"
+                         _ -> ((v2 - v1) * 100) / minval
 
 -- We map a fraction x between 0 and 1 to a negative 1/x for plotting on an
 -- equal and opposite scale.
