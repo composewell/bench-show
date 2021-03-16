@@ -60,10 +60,7 @@ description:
 category:            Performance, Benchmarking
 homepage:            https://github.com/composewell/bench-show
 license-file:        LICENSE
-tested-with:           GHC==8.6.5
-                     , GHC==8.4.4
-                     , GHC==8.2.2
-                     , GHC==7.10.3
+tested-with:         GHC==8.8.3
 copyright:           2017, 2018 Composewell Technologies
 stability:           Experimental
 build-type:          Simple
@@ -73,7 +70,6 @@ extra-source-files:
     Changelog.md
     README.md
     stack.yaml
-    stack-8.2.yaml
     test/results.csv
     test/results.csvraw
     test/results-doc.csv
