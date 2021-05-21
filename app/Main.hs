@@ -18,7 +18,6 @@
 --
 module Main where
 
-import Data.Semigroup ((<>))
 import Options.Applicative.Simple (addCommand, simpleOptions, simpleVersion)
 import Paths_bench_show (version)
 
