@@ -61,6 +61,8 @@ category:            Performance, Benchmarking
 homepage:            https://github.com/composewell/bench-show
 license-file:        LICENSE
 tested-with:         GHC==8.8.3
+                   , GHC==8.6.5
+                   , GHC==8.4.4
 copyright:           2017, 2018 Composewell Technologies
 stability:           Experimental
 build-type:          Simple
@@ -83,6 +85,9 @@ extra-source-files:
     docs/grouped-percent-delta-sorted-median-time.svg
     docs/grouped-single-estimator-coeff-time.svg
     docs/regression-percent-descending-median-time.svg
+
+    appveyor.yml
+    .github/workflows/packcheck.yml
 
 extra-doc-files:
     docs/full-median-time.svg
