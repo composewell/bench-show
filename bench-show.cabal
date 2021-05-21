@@ -77,17 +77,10 @@ extra-source-files:
     test/results-doc.csv
     test/results-doc-multi.csv
 
-    docs/full-median-time.svg
-    docs/grouped-median-time.svg
-    docs/grouped-delta-median-time.svg
-    docs/grouped-percent-delta-coeff-time.svg
-    docs/grouped-percent-delta-median-time.svg
-    docs/grouped-percent-delta-sorted-median-time.svg
-    docs/grouped-single-estimator-coeff-time.svg
-    docs/regression-percent-descending-median-time.svg
-
     appveyor.yml
     .github/workflows/packcheck.yml
+    .gitignore
+    TODO.md
 
 extra-doc-files:
     docs/full-median-time.svg
