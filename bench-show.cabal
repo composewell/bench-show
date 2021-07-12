@@ -71,15 +71,10 @@ cabal-version:       1.18
 extra-source-files:
     Changelog.md
     README.md
-    stack.yaml
     test/results.csv
     test/results.csvraw
     test/results-doc.csv
     test/results-doc-multi.csv
-
-    appveyor.yml
-    .github/workflows/packcheck.yml
-    .gitignore
     TODO.md
 
 extra-doc-files:

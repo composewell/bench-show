@@ -1,0 +1,5 @@
+.packcheck.ignore
+appveyor.yml
+.github/workflows/packcheck.yml
+.gitignore
+stack.yaml
