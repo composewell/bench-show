@@ -237,8 +237,8 @@ import BenchShow
 -- compared is arrived at. By default we use the 'MinEstimators' strategy which
 -- computes the difference using all the available estimators and takes the
 -- minimum of all. We can use a 'SingleEstimator' strategy instead if we so
--- desire, it uses the estimatorr configured for the report using the
--- @estimator@ field of the configuration..
+-- desire, it uses the estimator configured for the report using the
+-- @estimator@ field of the configuration.
 --
 -- @
 --    'report' "results.csv" Nothing

@@ -47,7 +47,7 @@ genGroupReport RawReport{..} cfg@Config{..} = do
             then diffString presentation diffStrategy
             else Nothing
     case mkTitle of
-        Just _ -> putStrLn $ maybe "" (\f -> f reportIdentifier) mkTitle
+        Just f -> putStrLn $ f reportIdentifier
         Nothing -> putStrLn $ makeTitle reportIdentifier diffStr cfg
 
     let benchcol  = "Benchmark" : reportRowIds
