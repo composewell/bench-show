@@ -63,11 +63,11 @@ genGroupReport RawReport{..} cfg@Config{..} = do
                                     in colorCode threshold y
                                 _ -> id
                     in map f colValues
-                renderTailCols estimators col analyzed =
-                    let regular = renderGroupCol $ showCol col Nothing analyzed
+                renderTailCols estimators col =
+                    let regular = renderGroupCol $ showCol col Nothing
                         colored = zipWith ($) (id : id : colorCol col)
                                     $ renderGroupCol
-                                    $ showCol col estimators analyzed
+                                    $ showCol col estimators
                     in case presentation of
                         Groups Diff        -> colored
                         Groups PercentDiff -> colored
@@ -79,12 +79,10 @@ genGroupReport RawReport{..} cfg@Config{..} = do
                             renderTailCols
                         <$> ZipList (map Just $ tail ests)
                         <*> ZipList tailCols
-                        <*> ZipList (tail reportAnalyzed)
                 Nothing ->  getZipList $
                             renderTailCols
                         <$> pure Nothing
                         <*> ZipList tailCols
-                        <*> ZipList (tail reportAnalyzed)
         rows = foldl (zipWith (<+>)) (renderCol benchcol) groupcols
     putDoc $ vcat rows
     putStrLn "\n"
@@ -134,10 +132,10 @@ genGroupReport RawReport{..} cfg@Config{..} = do
                     then showEstVal estvals estimator
                     else ""
             withEstVal =
-                zipWith withEstimator colValues (head reportAnalyzed)
+                zipWith withEstimator colValues colAnalyzed
         in colName : withEstVal
 
-    showCol ReportColumn{..} estimators analyzed = colName :
+    showCol ReportColumn{..} estimators = colName :
         let showVal val =
                 let showDiff =
                         if val > 0
@@ -170,7 +168,7 @@ genGroupReport RawReport{..} cfg@Config{..} = do
                 in getZipList $
                         withAnnot
                     <$> ZipList colValues
-                    <*> ZipList analyzed
+                    <*> ZipList colAnalyzed
                     <*> ZipList ests
 
             Nothing ->
@@ -180,7 +178,7 @@ genGroupReport RawReport{..} cfg@Config{..} = do
                 in getZipList $
                         withEstVal
                     <$> ZipList colValues
-                    <*> ZipList analyzed
+                    <*> ZipList colAnalyzed
                     <*> pure estimator
 
 -- | Presents the benchmark results in a CSV input file as text reports
