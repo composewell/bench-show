@@ -95,38 +95,31 @@ jobs:
         # for more info about adding matrix elements.
         # Adding any element to the list will increase the number of matrix
         # elemets proportional to the cross product.
-        name: [ci]
-        # Uncomment GHC versions you want the CI to run on.
-        ghc_version:
-          [ 8.8.3
-          # , 8.8.4
-          , 8.6.5
-          , 8.4.4
-          ]
-        command:
-          [ cabal-v2
-          # , stack
-          ]
-        runner:
-          [ ubuntu-latest
-          # , macos-latest
-          ]
-        # include:
-          # Additional ci matrix elements
-          # - name: ci
-          #   ghc_version: 8.8.3
-          #   command: stack
-          #   runner: ubuntu-latest
+        name:
+          - 8.4.4
+          - 8.6.5
+          - 8.8.3
 
-          # - name: ci
-          #   ghc_version: 8.4.4
-          #   command: stack
-          #   runner: ubuntu-latest
 
-          # - name: ci
-          #   ghc_version: 8.8.3
-          #   command: cabal-v2
-          #   runner: macos-latest
+        include:
+
+          - name: 8.4.4
+            ghc_version: 8.4.4
+            runner: ubuntu-latest
+            cabal_version: 3.2
+            command: cabal-v2
+
+          - name: 8.6.5
+            ghc_version: 8.6.5
+            runner: ubuntu-latest
+            cabal_version: 3.2
+            command: cabal-v2
+
+          - name: 8.8.3
+            ghc_version: 8.8.3
+            runner: ubuntu-latest
+            cabal_version: 3.2
+            command: cabal-v2
 
           # - name: hlint
           #   command: cabal-v2
@@ -135,30 +128,13 @@ jobs:
           #     HLINT_OPTIONS="lint"
           #     HLINT_TARGETS="app lib"
 
-          # IMPORTANT: Please change the --repo-token to your repo token
-          # in COVERALLS_OPTIONS above before enabling this.
-          # - name: coveralls
-          #   ghc_version: 8.8.3
-          #   installer: |
-          #     # required by hpc-coveralls
-          #     sudo apt-get install -y libcurl4-gnutls-dev
-          #     sudo apt-get install -y git
-          #   command: cabal-v2
-          #   # Please change the repo token to your repo token
-          #   pack_options: >-
-          #     CABAL_PROJECT=cabal.project.coveralls
-          #     COVERALLS_OPTIONS="--repo-token=YvxdfMiOmfq0limz6nLd4DxiC1RBQJ4dA --coverage-mode=StrictlyFullLines --exclude-dir=test test"
-          #   runner: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v2
 
     - uses: haskell/actions/setup@v1
-      if: ${{ matrix.name != 'hlint' }}
       with:
         ghc-version: ${{ matrix.ghc_version }}
-        # We need not put this in the matrix. This will be fixed in most cases.
-        cabal-version: 3.2
+        cabal-version: ${{ matrix.cabal_version }}
 
     - uses: actions/cache@v2
       name: Cache common directories
