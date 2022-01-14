@@ -1084,15 +1084,14 @@ data ReportColumn = ReportColumn
     { colName   :: String
     , colUnit   :: RelativeUnit
     , colValues :: [Double]
+    , colAnalyzed :: [AnalyzedField]
     } deriving Show
 
--- XXX put reportAnalyzed in reportColumns
 data RawReport = RawReport
     { reportOutputFile :: Maybe FilePath
     , reportIdentifier :: String
     , reportRowIds     :: [String]
     , reportColumns    :: [ReportColumn]
-    , reportAnalyzed   :: [[AnalyzedField]]
     , reportEstimators :: Maybe [[Estimator]]
     } deriving Show
 
@@ -1196,10 +1195,14 @@ prepareGroupsReport cfg@Config{..} style outfile rtype runs field matrices =
                             else ""
                 in map withSuffix matrices
 
-        columns = getZipList $ ReportColumn
+        columns =
+            getZipList
+                $ (\n u v a ->
+                       ReportColumn n u v (map (scaleAnalyzedField u) a))
                     <$> ZipList mkColNames
                     <*> ZipList mkColUnits
                     <*> ZipList mkColValues
+                    <*> ZipList origSortedCols
 
         removeBaseline xs =
             let rel = case style of
@@ -1218,9 +1221,6 @@ prepareGroupsReport cfg@Config{..} style outfile rtype runs field matrices =
             , reportColumns    = removeBaseline
                 $ columnNameByUnit mkColUnits
                 $ columnNameByStyle style columns
-            , reportAnalyzed   = removeBaseline $
-                zipWith (\x y -> map (scaleAnalyzedField x) y)
-                        mkColUnits origSortedCols
             , reportEstimators = fmap removeBaseline estimators
             }
 
@@ -1300,13 +1300,13 @@ prepareFieldsReport cfg@Config{..} outfile group =
                 <$> ZipList (withUnits mkColNames)
                 <*> ZipList mkColUnits
                 <*> ZipList mkColValues
+                <*> ZipList sortedCols
 
     in RawReport
             { reportOutputFile = outfile
             , reportIdentifier = groupName group
             , reportRowIds     = benchmarks
             , reportColumns    = columns
-            , reportAnalyzed   = sortedCols
             , reportEstimators = Nothing
             }
 

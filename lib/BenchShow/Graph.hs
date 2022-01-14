@@ -61,6 +61,7 @@ transformColumns columns =
             { colName = ""
             , colUnit = RelativeUnit "" 1
             , colValues = []
+            , colAnalyzed = []
             }]
      else columns
 
@@ -79,6 +80,7 @@ transformFractionValue ReportColumn{..} =
                 x | x < (-1) -> x + 1
                 x -> error $ "BenchShow.Graph.transformFractionValue: unhandled: " ++ show x
                 ) colValues
+        , colAnalyzed = colAnalyzed
         }
 
 transformFractionLabels :: LinearAxisParams Double
