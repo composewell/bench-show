@@ -51,6 +51,12 @@ pTitle = strOption
     <> metavar "STRING"
     <> help "Title for the report" )
 
+pFailureField :: Parser String
+pFailureField = strOption
+  ( long "failure-field"
+    <> metavar "STRING"
+    <> help "A field to scrutinize the threshold and fail on. Eg: 'allocated'" )
+
 pTitleAnnotation :: Parser TitleAnnotation
 pTitleAnnotation = option auto $
        long "title-annotations"
@@ -104,6 +110,7 @@ pConfig = Config
     <*> parseOptional presentation pPresentation
     <*> parseOptional estimator pEstimator
     <*> parseOptional threshold pThreshold
+    <*> parseOptional failureField (optional pFailureField)
     <*> parseOptional diffStrategy pDiffStrategy
     <*> parseOptional omitBaseline pOmitBaseline
     <*> pure (selectFields defaultConfig)

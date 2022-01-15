@@ -18,7 +18,7 @@ module BenchShow.Report
     ) where
 
 import Control.Applicative (ZipList(..))
-import Control.Monad (forM_)
+import Control.Monad (forM_, unless)
 import Data.Maybe (fromMaybe)
 import Statistics.Types (Estimate(..))
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
@@ -181,6 +181,39 @@ genGroupReport RawReport{..} cfg@Config{..} = do
                     <*> ZipList colAnalyzed
                     <*> pure estimator
 
+getBenchmarksOverThreshold :: RawReport -> Config -> [(String, Double)]
+getBenchmarksOverThreshold RawReport {..} Config {..} =
+    let zipped =
+            getZipList
+                $ (,,)
+                      <$> ZipList reportRowIds
+                      <*> ZipList (colValues (head reportColumns))
+                      <*> ZipList (colValues (last reportColumns))
+     in filter (isOverThreshold threshold . snd)
+            $ map (\(r, b, x) ->  (r, toPercentDiff b x)) zipped
+
+    where
+
+    toPercentDiff b x =
+        case presentation of
+            Groups Diff -> absToPercentDiff x b
+            Groups PercentDiff -> x
+            Groups Multiples -> multiplesToPercentDiff x
+            _ -> 0
+    isOverThreshold thresh x = x > fromIntegral thresh
+    absToPercentDiff diff orig = diff / orig * 100
+
+failOnExceedingThreshold :: RawReport -> Config -> IO ()
+failOnExceedingThreshold rawReport config = do
+    let bmarks = getBenchmarksOverThreshold rawReport config
+    unless (null bmarks) $ do
+        putStr $ unlines $ map show bmarks
+        fail
+            $ unwords
+                  [ "Failing as the benchmarks above are over the threshold,"
+                  , show (threshold config)
+                  ]
+
 -- | Presents the benchmark results in a CSV input file as text reports
 -- according to the provided configuration.  The first parameter is the input
 -- file name. The second parameter, when specified using 'Just', is the name
@@ -205,9 +238,18 @@ report inputFile outputFile cfg@Config{..} = do
     (runs, matrices) <- prepareGroupMatrices cfg inputFile csvlines fields
     case presentation of
         Groups style ->
-            forM_ fields $
-                reportComparingGroups style dir outputFile TextReport runs
-                               cfg genGroupReport matrices
+            forM_ fields $ \fld ->
+                let reportingFunc rr conf =
+                        case failureField of
+                            Nothing -> genGroupReport rr conf
+                            Just fld_ ->
+                                if fld == fld_
+                                then do
+                                    genGroupReport rr conf
+                                    failOnExceedingThreshold rr conf
+                                else genGroupReport rr conf
+                in reportComparingGroups style dir outputFile TextReport runs
+                               cfg reportingFunc matrices fld
         Fields -> do
             forM_ matrices $
                 reportPerGroup dir outputFile TextReport cfg genGroupReport

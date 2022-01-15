@@ -234,6 +234,10 @@ data Config = Config
     -- beyond which the benchmark is flagged to have regressed or improved.
     , threshold :: Word
 
+    -- | Field to scrutinize and fail after reporting if the difference between
+    -- two runs of a benchmark the threshold.
+    , failureField :: Maybe String
+
     -- | Strategy to compare two runs or groups of benchmarks.
     , diffStrategy  :: DiffStrategy
 
@@ -341,6 +345,7 @@ defaultConfig = Config
     , presentation      = Groups Absolute
     , estimator         = Median
     , threshold         = 3
+    , failureField      = Nothing
     , diffStrategy      = SingleEstimator
     , omitBaseline      = False
     , selectFields      = filter (flip elem ["time", "mean", "maxrss"] . map toLower)
