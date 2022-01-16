@@ -207,7 +207,12 @@ failOnExceedingThreshold :: RawReport -> Config -> IO ()
 failOnExceedingThreshold rawReport config = do
     let bmarks = getBenchmarksOverThreshold rawReport config
     unless (null bmarks) $ do
-        putStr $ unlines $ map show bmarks
+        let maxBIDLen = maximum (map (length . fst) bmarks)
+            padded =
+                let padlen n = maxBIDLen - length n + 1
+                in map (\(n, v) -> (n ++ replicate (padlen n) ' ', v)) bmarks
+            docified = map (\(n, v) -> text n <> dullred (double v)) padded
+        putDoc $ vcat docified
         fail
             $ unwords
                   [ "Failing as the benchmarks above are over the threshold,"
