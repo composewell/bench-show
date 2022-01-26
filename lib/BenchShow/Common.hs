@@ -661,17 +661,7 @@ selectBenchmarksByField :: Config
                         -> [String]
 selectBenchmarksByField Config{..} matrices columns colsByStyle =
     let bmnames = selectBenchmarks extractGroup
-    in if (null bmnames)
-       then error $ "selectBenchmarks must select at least one benchmark"
-       else
-           -- XXX instead of matrices we can just use columns here
-           let xs = foldl benchmarkCompareSanity bmnames matrices
-           in if (null xs)
-              then error $ "selectBenchmarks: none of the selected benchmarks "
-                    ++ show bmnames
-                    ++ " is common to all the benchmark groups "
-                    ++ show grpNames
-              else xs
+     in foldl benchmarkCompareSanity bmnames matrices
 
     where
 
@@ -728,9 +718,7 @@ selectBenchmarksByGroup :: Config -> GroupMatrix -> [String]
 selectBenchmarksByGroup Config{..} grp@GroupMatrix{..} =
     -- XXX this is common to ByField and ByGroup
     let bmnames = selectBenchmarks extractField
-    in if (null bmnames)
-       then error $ "selectBenchmarks must select at least one benchmark"
-       else bmnames
+     in bmnames
 
     where
 
@@ -934,15 +922,15 @@ getReportExtension rtype =
         TextReport -> ".txt"
         GraphicalChart -> ".svg"
 
-prepareOutputFile :: FilePath -> ReportType -> FilePath -> Estimator -> String -> IO FilePath
-prepareOutputFile dir rtype file est field = do
+prepareOutputFile :: FilePath -> ReportType -> FilePath -> Estimator -> String -> FilePath
+prepareOutputFile dir rtype file est field =
     let estStr = case est of
             Mean -> "mean"
             Median -> "median"
             Regression -> "coeff"
-    let path = dir </> (file ++ "-" ++ estStr ++ "-" ++ field
+        path = dir </> (file ++ "-" ++ estStr ++ "-" ++ field
                              ++ getReportExtension rtype)
-    return path
+    in path
 
 prepareToReport :: FilePath -> Config -> IO (CSV, [String])
 prepareToReport inputFile Config{..} = do
@@ -1134,7 +1122,7 @@ prepareGroupsReport :: Config
                     -> Int
                     -> String
                     -> [GroupMatrix]
-                    -> RawReport
+                    -> Maybe RawReport
 prepareGroupsReport cfg@Config{..} style outfile rtype runs field matrices =
     -- XXX Determine the unit based the whole range of values across all columns
     let sortValues :: [String] -> [(String, a)] -> [a]
@@ -1214,15 +1202,17 @@ prepareGroupsReport cfg@Config{..} style outfile rtype runs field matrices =
                then tail xs
                else xs
 
-    in RawReport
-            { reportOutputFile = outfile
-            , reportIdentifier = field
-            , reportRowIds     = benchmarks
-            , reportColumns    = removeBaseline
-                $ columnNameByUnit mkColUnits
-                $ columnNameByStyle style columns
-            , reportEstimators = fmap removeBaseline estimators
-            }
+    in if length benchmarks > 0
+       then Just $ RawReport
+                { reportOutputFile = outfile
+                , reportIdentifier = field
+                , reportRowIds     = benchmarks
+                , reportColumns    = removeBaseline
+                    $ columnNameByUnit mkColUnits
+                    $ columnNameByStyle style columns
+                , reportEstimators = fmap removeBaseline estimators
+                }
+       else Nothing
 
 showStatusMessage :: Show a => Config -> String -> Maybe a -> IO ()
 showStatusMessage cfg field outfile =
@@ -1251,21 +1241,24 @@ reportComparingGroups
     -> String
     -> IO ()
 reportComparingGroups style dir outputFile rtype runs cfg@Config{..} mkReport matrices field = do
-    outfile <- case outputFile of
-        Just file -> fmap Just $ prepareOutputFile dir rtype file
-                                        estimator field
-        Nothing -> return Nothing
-
-    let rawReport = prepareGroupsReport cfg style outfile rtype runs field matrices
-    showStatusMessage cfg field outfile
-    mkReport rawReport cfg
+    let outfile = case outputFile of
+            Just file -> Just $ prepareOutputFile dir rtype file
+                                            estimator field
+            Nothing -> Nothing
+        mRawReport = prepareGroupsReport cfg style outfile rtype runs field matrices
+    -- Don't make report if it is empty
+    case mRawReport of
+        Just rawReport -> do
+            showStatusMessage cfg field outfile
+            mkReport rawReport cfg
+        Nothing -> return ()
 
 -- Prepare report for a given group, the report would consist of multiple
 -- field columns.
 prepareFieldsReport :: Config
                  -> Maybe FilePath
                  -> GroupMatrix
-                 -> RawReport
+                 -> Maybe RawReport
 prepareFieldsReport cfg@Config{..} outfile group =
     let mkColNames :: [String]
         mkColNames = colNames $ groupMatrix group
@@ -1302,13 +1295,15 @@ prepareFieldsReport cfg@Config{..} outfile group =
                 <*> ZipList mkColValues
                 <*> ZipList sortedCols
 
-    in RawReport
-            { reportOutputFile = outfile
-            , reportIdentifier = groupName group
-            , reportRowIds     = benchmarks
-            , reportColumns    = columns
-            , reportEstimators = Nothing
-            }
+    in if length benchmarks > 0
+       then Just $ RawReport
+                { reportOutputFile = outfile
+                , reportIdentifier = groupName group
+                , reportRowIds     = benchmarks
+                , reportColumns    = columns
+                , reportEstimators = Nothing
+                }
+       else Nothing
 
 reportPerGroup
     :: FilePath
@@ -1319,14 +1314,17 @@ reportPerGroup
     -> GroupMatrix
     -> IO ()
 reportPerGroup dir outputFile rtype cfg@Config{..} mkReport group = do
-    outfile <- case outputFile of
-        Just file -> fmap Just $ prepareOutputFile dir rtype file
-                                        estimator (groupName group)
-        Nothing -> return Nothing
-
-    let rawReport = prepareFieldsReport cfg outfile group
-    showStatusMessage cfg (groupName group) outfile
-    mkReport rawReport cfg
+    let outfile = case outputFile of
+            Just file -> Just $ prepareOutputFile dir rtype file
+                                            estimator (groupName group)
+            Nothing -> Nothing
+        mRawReport = prepareFieldsReport cfg outfile group
+    -- Don't make report if it is empty
+    case mRawReport of
+        Just rawReport -> do
+            showStatusMessage cfg (groupName group) outfile
+            mkReport rawReport cfg
+        Nothing -> return ()
 
 -------------------------------------------------------------------------------
 -- Utility functions
