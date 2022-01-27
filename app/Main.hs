@@ -22,7 +22,13 @@ import Options.Applicative.Simple (addCommand, simpleOptions, simpleVersion)
 import Paths_bench_show (version)
 
 import Options.Applicative
+
+#ifndef NO_CHARTS
 import BenchShow
+#else
+import BenchShow.Internal.Common
+import BenchShow.Internal.Report
+#endif
 
 -- The command line interface provides subcommands for each task.  There are
 -- some common options that apply to all subcommands. Subcommands may have
@@ -143,6 +149,8 @@ cmdReport ReportOpts{..} cfg = report reportInput reportOutput cfg
 -- "graph" subcommand
 -------------------------------------------------------------------------------
 
+#ifndef NO_CHARTS
+
 data GraphOpts = GraphOpts
     { graphInput :: FilePath
     , graphOutput :: FilePath
@@ -158,6 +166,8 @@ pGraphOpts = GraphOpts
 
 cmdGraph :: GraphOpts -> Config -> IO ()
 cmdGraph GraphOpts{..} cfg = graph graphInput graphOutput cfg
+
+#endif
 
 -------------------------------------------------------------------------------
 -- Build and run a subcommand parser
@@ -177,10 +187,13 @@ cmdLineParser p = do
                        "Generate a text report"
                        cmdReport
                        pReportOpts
+
+#ifndef NO_CHARTS
             addCommand "graph"
                        "Generate a graphical report"
                        cmdGraph
                        pGraphOpts
+#endif
 
 main :: IO ()
 main = cmdLineParser pConfig
