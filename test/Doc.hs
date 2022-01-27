@@ -4,14 +4,22 @@ module Main where
 
 import Data.Ord (comparing)
 import Data.List (sortBy)
-import Data.List.Split (splitOn)
+import Data.Functor.Identity (runIdentity)
+
+import qualified Streamly.Prelude as Stream
+import qualified Streamly.Data.Fold as Fold
 
 import BenchShow
+
+splitOn :: Eq a => a -> [a] -> [[a]]
+splitOn d =
+    runIdentity
+        . Stream.toList . Stream.splitOn (== d) Fold.toList . Stream.fromList
 
 main :: IO ()
 main = do
     let classifier name =
-            case splitOn "/" name of
+            case splitOn '/' name of
                 grp : rest -> Just (grp, concat rest)
                 _      -> Nothing
 

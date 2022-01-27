@@ -4,9 +4,13 @@ module Main where
 
 import Data.Function (on)
 import Data.List
-import Data.List.Split (splitOn)
+import Data.Functor.Identity (runIdentity)
 -- import Data.Maybe (catMaybes)
 -- import System.Process.Typed (readProcess_)
+
+import qualified Streamly.Prelude as Stream
+import qualified Streamly.Data.Fold as Fold
+
 import BenchShow
 
 -- import qualified Data.Text.Lazy as T
@@ -25,6 +29,11 @@ packages =
     , "machines"
     , "drinkery"
     ]
+
+splitOn :: Eq a => a -> [a] -> [[a]]
+splitOn d =
+    runIdentity
+        . Stream.toList . Stream.splitOn (== d) Fold.toList . Stream.fromList
 
 -------------------------------------------------------------------------------
 main :: IO ()
@@ -70,7 +79,7 @@ main = do
             , "transformation/scan"
             ]
         bsort bs =
-                let i = intersect (map (last . splitOn "/") prefixes) bs
+                let i = intersect (map (last . splitOn '/') prefixes) bs
                 in i ++ (bs \\ i)
         cfg = defaultConfig
             { mkTitle = Just (\_ -> chartTitle)
@@ -78,7 +87,7 @@ main = do
             , classifyBenchmark = \bm ->
                 case any (`isPrefixOf` bm) prefixes of
                     True ->
-                        let xs = reverse (splitOn "/" bm)
+                        let xs = reverse (splitOn '/' bm)
                         in Just (suffixVersion (xs !! 0), xs !! 1)
                     False -> Nothing
             , selectBenchmarks = \g -> bsort $

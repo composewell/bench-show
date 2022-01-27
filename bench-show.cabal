@@ -119,7 +119,7 @@ library
         , directory         >= 1.2     && < 1.4
         , transformers      >= 0.4     && < 0.7
         , ansi-wl-pprint    >= 0.6     && < 0.7
-        , split             >= 0.2     && < 0.3
+        , streamly          >= 0.8     && < 0.9
         , statistics        >= 0.15    && < 0.17
         , vector            >= 0.10    && < 0.13
 
@@ -139,7 +139,6 @@ executable bench-show
         , directory            >= 1.2     && < 1.4
         , transformers         >= 0.4     && < 0.7
         , ansi-wl-pprint       >= 0.6     && < 0.7
-        , split                >= 0.2     && < 0.3
         , statistics           >= 0.15    && < 0.17
         , vector               >= 0.10    && < 0.13
         , semigroups           >= 0.18    && < 0.21
@@ -160,7 +159,7 @@ test-suite test
     build-depends:
           bench-show
         , base              >= 4.8     && < 4.17
-        , split             >= 0.2     && < 0.3
+        , streamly          >= 0.8     && < 0.9
         , text              >= 1.1.1   && < 2.1
         -- , typed-process     >= 0.1.0.0 && < 0.3
 
@@ -177,4 +176,4 @@ test-suite doc
     build-depends:
           bench-show
         , base              >= 4.8 && < 4.17
-        , split             >= 0.2 && < 0.3
+        , streamly          >= 0.8 && < 0.9

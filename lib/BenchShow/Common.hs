@@ -47,10 +47,10 @@ import Control.Monad (when, unless)
 import Data.Char (toLower)
 import Data.Foldable (foldl')
 import Data.Function ((&), on)
+import Data.Functor.Identity (runIdentity)
 import Data.List
        (transpose, groupBy, (\\), find, sortBy, elemIndex, intersect,
         intersectBy)
-import Data.List.Split (linesBy)
 import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Ord (comparing)
 import Debug.Trace (trace)
@@ -59,6 +59,9 @@ import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>))
 import Text.CSV (CSV, parseCSVFromFile)
 import Text.Read (readMaybe)
+
+import qualified Streamly.Prelude as Stream
+import qualified Streamly.Data.Fold as Fold
 
 import BenchShow.Analysis
 
@@ -854,7 +857,11 @@ filterFields fieldNames BenchmarkIterMatrix{..} =
 splitRuns :: NumberedLines -> ([String], [NumberedLines])
 splitRuns csvlines =
     let header = snd $ head csvlines
-        ls = linesBy (\x -> snd x == header) (tail csvlines)
+        ls =
+            runIdentity
+                $ Stream.toList
+                $ Stream.splitOnSuffix (\x -> snd x == header) Fold.toList
+                $ Stream.fromList (tail csvlines)
     in (header, ls)
 
 readWithError :: Read a => Int -> String -> (String, String) -> a
