@@ -292,7 +292,7 @@ data Config = Config
     -- and a 'GroupStyle'. The output of the function is either a 'Right' value
     -- consisting of tuples of the benchmark names and values corresponding to
     -- the given column and style or a 'Left' value indicating an error.
-    -- 'selectBenchmarks' can inspect these benchmarks and there values to
+    -- 'selectBenchmarks' can inspect these benchmarks and their values to
     -- produce a filtered and sorted list of benchmark names that are to be
     -- rendered.
     --
