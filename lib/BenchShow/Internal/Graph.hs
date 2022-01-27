@@ -1,5 +1,5 @@
 -- |
--- Module      : BenchShow.Graph
+-- Module      : BenchShow.Internal.Graph
 -- Copyright   : (c) 2018 Composewell Technologies
 --
 -- License     : BSD3
@@ -12,7 +12,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
 
-module BenchShow.Graph
+module BenchShow.Internal.Graph
     (
       graph
     ) where
@@ -25,7 +25,7 @@ import Data.Maybe (fromMaybe)
 import Graphics.Rendering.Chart.Easy
 import Graphics.Rendering.Chart.Backend.Diagrams
 
-import BenchShow.Common
+import BenchShow.Internal.Common
 
 -------------------------------------------------------------------------------
 -- Benchmarking field specific handling
@@ -78,7 +78,7 @@ transformFractionValue ReportColumn{..} =
             case val of
                 x | x >= 1 -> x - 1
                 x | x < (-1) -> x + 1
-                x -> error $ "BenchShow.Graph.transformFractionValue: unhandled: " ++ show x
+                x -> error $ "BenchShow.Internal.Graph.transformFractionValue: unhandled: " ++ show x
                 ) colValues
         , colAnalyzed = colAnalyzed
         }

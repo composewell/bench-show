@@ -96,6 +96,6 @@ module BenchShow
     , graph
     ) where
 
-import BenchShow.Common
-import BenchShow.Graph
-import BenchShow.Report
+import BenchShow.Internal.Common
+import BenchShow.Internal.Graph
+import BenchShow.Internal.Report
