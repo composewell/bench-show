@@ -138,7 +138,6 @@ executable bench-show
         , mwc-random           >= 0.13    && < 0.16
         , directory            >= 1.2     && < 1.4
         , transformers         >= 0.4     && < 0.7
-        , ansi-wl-pprint       >= 0.6     && < 0.7
         , split                >= 0.2     && < 0.3
         , statistics           >= 0.15    && < 0.17
         , vector               >= 0.10    && < 0.13
