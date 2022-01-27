@@ -85,19 +85,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # The reason we have name here is to force an additional config instead
-        # of adding to an existing config while adding additional configs.
-        # Look at <https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-syntax-for-github-actions#jobsjob_idstrategymatrix>
-        # for more info about adding matrix elements.
-        # Adding any element to the list will increase the number of matrix
-        # elemets proportional to the cross product.
-        name:
-          - 8.4.4
-          - 8.6.5
-          - 8.8.4
-          - 8.10.7
-          - 9.0.1
-          # - 9.2.1
 
         include:
 
