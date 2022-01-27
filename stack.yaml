@@ -1,3 +1,7 @@
-resolver: lts-16.11
+resolver: lts-18.23
 packages:
 - '.'
+extra-deps:
+- streamly-0.8.1.1
+- unicode-data-0.2.0
+- fusion-plugin-types-0.1.0

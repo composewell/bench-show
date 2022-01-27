@@ -57,8 +57,14 @@ import Debug.Trace (trace)
 import Statistics.Types (Estimate(..), ConfInt(..))
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>))
-import Text.CSV (CSV, parseCSVFromFile)
+import System.IO (IOMode(..))
 import Text.Read (readMaybe)
+
+import qualified Streamly.Data.Fold as Fold
+import qualified Streamly.FileSystem.Handle as Handle
+import qualified Streamly.Prelude as Stream
+import qualified Streamly.Unicode.Stream as Unicode
+import qualified System.IO as IO
 
 import BenchShow.Analysis
 
@@ -80,6 +86,28 @@ filterSanity label old new = do
         \following items were added: " ++ show added
         ++ "\nOriginal groups: " ++ show old
         ++ "\nNew groups: " ++ show new
+
+type CSV = [[String]]
+
+-- XXX This is ugly in performance but works for the time being.
+-- XXX This lib should not depend on internal modules of streamly.
+parseCSVFromFile :: FilePath -> IO CSV
+parseCSVFromFile inFile = do
+    src <- IO.openFile inFile ReadMode
+
+    Stream.unfold Handle.read src -- SerialT IO Word8
+        & Unicode.decodeUtf8      -- SerialT IO Char
+        & parseLines              -- IO CSV
+
+    where
+
+    parseLine ls =
+        Stream.toList $ Stream.splitOn (== ',') Fold.toList $ Stream.fromList ls
+
+    parseLines strm =
+        Stream.splitOn (== '\n') Fold.toList strm
+            & Stream.mapM parseLine
+            & Stream.toList
 
 -------------------------------------------------------------------------------
 
@@ -939,17 +967,14 @@ prepareToReport inputFile Config{..} = do
         Just dir -> createDirectoryIfMissing True dir
     -- We assume the dataset is not big and therefore take liberties to process
     -- in a non-streaming fashion.
-    csvData <- parseCSVFromFile inputFile
-    case csvData of
-        Left e -> error $ show e
-        Right csvlines -> do
-            when (null csvlines) $ error $ "The input file ["
-                ++ show inputFile ++ "] is empty"
-            let allFields = head csvlines
-                fields = selectFields allFields
-            filterSanity "selectFields" allFields fields
-            let filt x = notElem (map toLower x) ["name", "iters"]
-            return (csvlines, filter filt fields)
+    csvlines <- parseCSVFromFile inputFile
+    when (null csvlines) $ error $ "The input file ["
+        ++ show inputFile ++ "] is empty"
+    let allFields = head csvlines
+        fields = selectFields allFields
+    filterSanity "selectFields" allFields fields
+    let filt x = notElem (map toLower x) ["name", "iters"]
+    return (csvlines, filter filt fields)
 
 -- Keep only those benchmarks that belong to the group.
 filterGroupBenchmarks :: [GroupMatrix] -> IO [GroupMatrix]
