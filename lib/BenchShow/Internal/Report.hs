@@ -21,11 +21,11 @@ import Control.Applicative (ZipList(..))
 import Control.Monad (forM_)
 import Data.Maybe (fromMaybe)
 import Statistics.Types (Estimate(..))
-import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 import Text.Printf (printf)
 
 import BenchShow.Internal.Common
 import BenchShow.Internal.Analysis
+import BenchShow.Internal.Pretty
 
 multiplesToPercentDiff :: Double -> Double
 multiplesToPercentDiff x = (if x > 0 then x - 1 else x + 1) * 100
