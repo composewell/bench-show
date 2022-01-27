@@ -131,18 +131,6 @@ executable bench-show
   ghc-options: -Wall
   build-depends:
           base                 >= 4.8     && < 4.17
-        , Chart                >= 1.6     && < 2
-        , Chart-diagrams       >= 1.6     && < 2
-        , csv                  >= 0.1     && < 0.2
-        , filepath             >= 1.3     && < 1.5
-        , mwc-random           >= 0.13    && < 0.16
-        , directory            >= 1.2     && < 1.4
-        , transformers         >= 0.4     && < 0.7
-        , ansi-wl-pprint       >= 0.6     && < 0.7
-        , split                >= 0.2     && < 0.3
-        , statistics           >= 0.15    && < 0.17
-        , vector               >= 0.10    && < 0.13
-        , semigroups           >= 0.18    && < 0.21
         , optparse-applicative >= 0.14.2  && < 0.17
         , optparse-simple      >= 0.1.0   && < 0.2
         , bench-show
