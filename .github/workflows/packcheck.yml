@@ -121,6 +121,14 @@ jobs:
               CABAL_BUILD_OPTIONS="-f no-charts"
               DISABLE_TEST=y
 
+          - name: 8.10.7+no-colors
+            ghc_version: 8.10.7
+            runner: ubuntu-latest
+            cabal_version: 3.2
+            command: cabal-v2
+            pack_options: >-
+              CABAL_BUILD_OPTIONS="-f no-colors"
+
           - name: 9.0.1
             ghc_version: 9.0.1
             runner: ubuntu-latest
