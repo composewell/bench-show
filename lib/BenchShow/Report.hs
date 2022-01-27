@@ -8,6 +8,7 @@
 -- Portability : GHC
 --
 
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
@@ -21,11 +22,51 @@ import Control.Applicative (ZipList(..))
 import Control.Monad (forM_)
 import Data.Maybe (fromMaybe)
 import Statistics.Types (Estimate(..))
+
+#ifdef WL_PRETTY
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
+#endif
+
 import Text.Printf (printf)
 
 import BenchShow.Common
 import BenchShow.Analysis
+
+#ifndef WL_PRETTY
+
+--------------------------------------------------------------------------------
+-- A replacement for all the combinators used from  Text.PrettyPrint.ANSI.Leijen
+--------------------------------------------------------------------------------
+
+type Doc = String
+
+dullred :: Doc -> Doc
+dullred = id
+
+dullgreen :: Doc -> Doc
+dullgreen = id
+
+(<+>) :: Doc -> Doc -> Doc
+(<+>) x y = x ++ " " ++ y
+
+vcat :: [Doc] -> Doc
+vcat = unlines
+
+putDoc :: Doc -> IO ()
+putDoc = putStrLn
+
+fill :: Int -> Doc  -> Doc
+fill i x =
+    let len = length x
+     in x ++ replicate (i - len) ' '
+
+indent :: Int -> Doc -> Doc
+indent i = unlines . map (replicate i ' ' ++) . lines
+
+text :: String -> Doc
+text = id
+
+#endif
 
 multiplesToPercentDiff :: Double -> Double
 multiplesToPercentDiff x = (if x > 0 then x - 1 else x + 1) * 100
