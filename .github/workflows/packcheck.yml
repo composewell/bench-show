@@ -1,4 +1,4 @@
-# packcheck-0.5.1
+# packcheck
 # You can use any of the options supported by packcheck as environment
 # variables here.  See https://github.com/composewell/packcheck for all
 # options and their explanation.
@@ -22,11 +22,7 @@ on:
 
 jobs:
   build:
-    name: >-
-      ${{ matrix.name }}
-      ${{ matrix.command }}
-      ${{ matrix.runner }}
-      ${{ matrix.ghc_version }}
+    name: ${{ matrix.name }}
     env:
       # ------------------------------------------------------------------------
       # Common options
@@ -78,7 +74,7 @@ jobs:
       # If you have not committed packcheck.sh in your repo at PACKCHECK
       # then it is automatically pulled from this URL.
       PACKCHECK_GITHUB_URL: "https://raw.githubusercontent.com/composewell/packcheck"
-      PACKCHECK_GITHUB_COMMIT: "91d76691e5cb82e77564be55d0126906b16d76bc"
+      PACKCHECK_GITHUB_COMMIT: "v0.6.0"
 
       # ------------------------------------------------------------------------
       # Final build variables
@@ -128,6 +124,15 @@ jobs:
             runner: ubuntu-latest
             cabal_version: 3.2
             command: cabal-v2
+
+          - name: 8.10.7+no-charts
+            ghc_version: 8.10.7
+            runner: ubuntu-latest
+            cabal_version: 3.2
+            command: cabal-v2
+            pack_options: >-
+              CABAL_BUILD_OPTIONS="-f no-charts"
+              DISABLE_TEST=y
 
           - name: 9.0.1
             ghc_version: 9.0.1
