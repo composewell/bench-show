@@ -1,5 +1,5 @@
 -- |
--- Module      : BenchShow.Common
+-- Module      : BenchShow.Internal.Common
 -- Copyright   : (c) 2018 Composewell Technologies
 --
 -- License     : BSD3
@@ -12,7 +12,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
 
-module BenchShow.Common
+module BenchShow.Internal.Common
     ( Presentation(..)
     , GroupStyle(..)
     , FieldTick (..)
@@ -60,7 +60,7 @@ import System.FilePath ((</>))
 import Text.CSV (CSV, parseCSVFromFile)
 import Text.Read (readMaybe)
 
-import BenchShow.Analysis
+import BenchShow.Internal.Analysis
 
 -------------------------------------------------------------------------------
 -- Utilities
@@ -447,10 +447,10 @@ fraction :: (Fractional a, Num a, Ord a, Show a) => a -> a -> a
 fraction v1 v2 =
     let val = v2 / v1
     in case val of
-            x | x <= 0 -> error $ "BenchShow.Common.fraction: negative: " ++ show x
+            x | x <= 0 -> error $ "BenchShow.Internal.Common.fraction: negative: " ++ show x
             x | x < 1 -> negate (1 / x)
             x | x >= 1 -> x
-            x -> error $ "BenchShow.Common.fraction: unhandled: " ++ show x
+            x -> error $ "BenchShow.Internal.Common.fraction: unhandled: " ++ show x
 
 cmpTransformColumns :: ReportType
                     -> GroupStyle

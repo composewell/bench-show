@@ -100,10 +100,10 @@ library
     hs-source-dirs:   lib
     exposed-modules:  BenchShow
                     , BenchShow.Tutorial
-    other-modules:    BenchShow.Analysis
-                    , BenchShow.Common
-                    , BenchShow.Graph
-                    , BenchShow.Report
+                    , BenchShow.Internal.Analysis
+                    , BenchShow.Internal.Common
+                    , BenchShow.Internal.Graph
+                    , BenchShow.Internal.Report
     default-language: Haskell2010
     default-extensions:
         OverloadedStrings

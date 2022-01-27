@@ -1,5 +1,5 @@
 -- |
--- Module      : BenchShow.Report
+-- Module      : BenchShow.Internal.Report
 -- Copyright   : (c) 2018 Composewell Technologies
 --
 -- License     : BSD3
@@ -12,7 +12,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
 
-module BenchShow.Report
+module BenchShow.Internal.Report
     (
       report
     ) where
@@ -24,8 +24,8 @@ import Statistics.Types (Estimate(..))
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 import Text.Printf (printf)
 
-import BenchShow.Common
-import BenchShow.Analysis
+import BenchShow.Internal.Common
+import BenchShow.Internal.Analysis
 
 multiplesToPercentDiff :: Double -> Double
 multiplesToPercentDiff x = (if x > 0 then x - 1 else x + 1) * 100
