@@ -101,6 +101,11 @@ flag no-charts
   manual: True
   default: False
 
+flag no-colors
+  description: Use pretty printing without colors
+  manual: True
+  default: False
+
 library
     hs-source-dirs:   lib
     exposed-modules:  BenchShow.Internal.Analysis
@@ -119,7 +124,6 @@ library
         , mwc-random        >= 0.13    && < 0.16
         , directory         >= 1.2     && < 1.4
         , transformers      >= 0.4     && < 0.7
-        , ansi-wl-pprint    >= 0.6     && < 0.7
         , split             >= 0.2     && < 0.3
         , statistics        >= 0.15    && < 0.17
         , vector            >= 0.10    && < 0.13
@@ -130,6 +134,11 @@ library
       build-depends:
           Chart             >= 1.6     && < 2
         , Chart-diagrams    >= 1.6     && < 2
+    if !flag(no-colors)
+       build-depends:
+          ansi-wl-pprint    >= 0.6     && < 0.7
+    else
+       cpp-options: -DNO_COLORS
 
 executable bench-show
   default-language: Haskell2010
