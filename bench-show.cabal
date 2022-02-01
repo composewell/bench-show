@@ -148,12 +148,11 @@ executable bench-show
   ghc-options: -Wall
   build-depends:
           base                 >= 4.8     && < 4.17
-        , optparse-applicative >= 0.14.2  && < 0.17
+        , optparse-applicative >= 0.14.2  && < 0.18
         , optparse-simple      >= 0.1.0   && < 0.2
         , bench-show
   if flag(no-charts)
     cpp-options: -DNO_CHARTS
-
 
 test-suite test
     if flag(no-charts)
