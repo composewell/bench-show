@@ -1,3 +1,10 @@
+## 0.3.2 (Feb 2022)
+
+* Show an empty report on the selection of no benchmarks instead of erroring
+  out.
+* Add a few flags to build a minimal version of the library.
+* Expose all available modules under the `Internal` namespace.
+
 ## 0.3.1
 
 ### Bug Fixes
