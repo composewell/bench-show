@@ -1,8 +1,8 @@
 # bench-show
 
 [![Hackage](https://img.shields.io/hackage/v/bench-show.svg?style=flat)](https://hackage.haskell.org/package/bench-show)
-[![Build Status](https://travis-ci.com/composewell/bench-show.svg?branch=master)](https://travis-ci.org/composewell/bench-show)
-[![Windows Build status](https://ci.appveyor.com/api/projects/status/5u19xvm7sn7salrh?svg=true)](https://ci.appveyor.com/project/harendra-kumar/bench-show)
+[![Github CI Build Status](https://github.com/composewell/bench-show/actions/workflows/packcheck.yml/badge.svg)](https://github.com/composewell/bench-show/actions/workflows/packcheck.yml/badge.svg)
+[![Appveyor Build status](https://ci.appveyor.com/api/projects/status/5u19xvm7sn7salrh?svg=true)](https://ci.appveyor.com/project/harendra-kumar/bench-show)
 
 Generate text reports and graphical charts from the benchmark results generated
 by `gauge` or `criterion` and stored in a CSV file. This tool is especially
