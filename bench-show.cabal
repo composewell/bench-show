@@ -129,13 +129,6 @@ library
         , split             >= 0.2     && < 0.3
         , statistics        >= 0.15    && < 0.17
         , vector            >= 0.10    && < 0.13
-    if !flag(no-charts)
-      exposed-modules:      BenchShow
-                            BenchShow.Tutorial
-                            BenchShow.Internal.Graph
-      build-depends:
-          Chart             >= 1.6     && < 2
-        , Chart-diagrams    >= 1.6     && < 2
     if !flag(no-colors)
        build-depends:
           ansi-wl-pprint    >= 0.6     && < 0.7
