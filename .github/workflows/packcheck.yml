@@ -24,57 +24,22 @@ jobs:
   build:
     name: ${{ matrix.name }}
     env:
-      # ------------------------------------------------------------------------
-      # Common options
-      # ------------------------------------------------------------------------
-      # GHC_OPTIONS: "-Werror"
+      # Env
       CABAL_REINIT_CONFIG: y
       LC_ALL: C.UTF-8
 
-      # ------------------------------------------------------------------------
-      # What to build
-      # ------------------------------------------------------------------------
-      # DISABLE_TEST: "y"
-      # DISABLE_BENCH: "y"
-      # DISABLE_DOCS: "y"
-      # DISABLE_SDIST_BUILD: "y"
-      # DISABLE_SDIST_GIT_CHECK: "y"
-      # DISABLE_DIST_CHECKS: "y"
-
-      # ------------------------------------------------------------------------
-      # stack options
-      # ------------------------------------------------------------------------
-      # Note requiring a specific version of stack using STACKVER may fail due to
-      # github API limit while checking and upgrading/downgrading to the specific
-      # version.
-      #STACKVER: "1.6.5"
-      #STACK_UPGRADE: "y"
-      #RESOLVER: "lts-12"
-
-      # ------------------------------------------------------------------------
-      # cabal options
-      # ------------------------------------------------------------------------
+      # Ghcup and Cabal
+      GHCUP_VERSION: 0.1.20.0
       CABAL_CHECK_RELAX: y
       CABAL_HACKAGE_MIRROR: "hackage.haskell.org:http://hackage.fpcomplete.com"
-
-      # ------------------------------------------------------------------------
-      # Where to find the required tools
-      # ------------------------------------------------------------------------
       PATH: /opt/ghc/bin:/sbin:/usr/sbin:/bin:/usr/bin
-      #TOOLS_DIR: /opt
+      GHCVER: ${{ matrix.ghc_version }}
+      CABALVER: ${{ matrix.cabal_version }}
 
-      # ------------------------------------------------------------------------
-      # Location of packcheck.sh (the shell script invoked to perform CI tests ).
-      # ------------------------------------------------------------------------
-      # You can either commit the packcheck.sh script at this path in your repo or
-      # you can use it by specifying the PACKCHECK_REPO_URL option below in which
-      # case it will be automatically copied from the packcheck repo to this path
-      # during CI tests. In any case it is finally invoked from this path.
+      # Packcheck
       PACKCHECK: "./packcheck.sh"
-      # If you have not committed packcheck.sh in your repo at PACKCHECK
-      # then it is automatically pulled from this URL.
       PACKCHECK_GITHUB_URL: "https://raw.githubusercontent.com/composewell/packcheck"
-      PACKCHECK_GITHUB_COMMIT: "v0.7.0"
+      PACKCHECK_GITHUB_COMMIT: "101c73b53473ddfb763d65058b80123991cfeb4f"
 
       # ------------------------------------------------------------------------
       # Final build variables
@@ -91,55 +56,53 @@ jobs:
           - name: 8.4.4
             ghc_version: 8.4.4
             runner: ubuntu-latest
-            cabal_version: 3.2
+            cabal_version: 3.2.0.0
             command: cabal-v2
 
           - name: 8.6.5
             ghc_version: 8.6.5
             runner: ubuntu-latest
-            cabal_version: 3.2
+            cabal_version: 3.2.0.0
             command: cabal-v2
 
           - name: 8.8.4
             ghc_version: 8.8.4
             runner: ubuntu-latest
-            cabal_version: 3.2
+            cabal_version: 3.2.0.0
             command: cabal-v2
 
-          - name: 8.10.7
+          - name: 8.10.7+text-1.2.5.0
             ghc_version: 8.10.7
             runner: ubuntu-latest
-            cabal_version: 3.2
-            command: cabal-v2
-
-          - name: 8.10.7+no-charts
-            ghc_version: 8.10.7
-            runner: ubuntu-latest
-            cabal_version: 3.2
+            cabal_version: 3.2.0.0
             command: cabal-v2
             pack_options: >-
-              CABAL_BUILD_OPTIONS="-f no-charts"
+              CABAL_BUILD_OPTIONS="--constraint='text==1.2.5.0'"
+
+          - name: 8.10.7+no-charts+text-1.2.5.0
+            ghc_version: 8.10.7
+            runner: ubuntu-latest
+            cabal_version: 3.2.0.0
+            command: cabal-v2
+            pack_options: >-
+              CABAL_BUILD_OPTIONS="-f no-charts --constraint='text==1.2.5.0'"
               DISABLE_TEST=y
 
-          - name: 8.10.7+no-colors
-            ghc_version: 8.10.7
-            runner: ubuntu-latest
-            cabal_version: 3.2
-            command: cabal-v2
-            pack_options: >-
-              CABAL_BUILD_OPTIONS="-f no-colors"
-
-          - name: 9.0.1
+          - name: 9.0.1+text-1.2.5.0
             ghc_version: 9.0.1
             runner: ubuntu-latest
-            cabal_version: 3.2
+            cabal_version: 3.2.0.0
             command: cabal-v2
+            pack_options: >-
+              CABAL_BUILD_OPTIONS="--constraint='text==1.2.5.0'"
 
-          - name: 9.2.8
+          - name: 9.2.8+no-colors
             ghc_version: 9.2.8
             runner: ubuntu-latest
             cabal_version: 3.10.2.1
             command: cabal
+            pack_options: >-
+              CABAL_BUILD_OPTIONS="-f no-colors"
 
           - name: 9.4.8
             ghc_version: 9.4.8
@@ -159,13 +122,22 @@ jobs:
             cabal_version: 3.10.2.1
             command: cabal
 
-          - name: 9.10.1
+          - name: 9.10.1+no-charts
             ghc_version: 9.10.1
             runner: ubuntu-latest
             cabal_version: 3.10.2.1
             command: cabal
             pack_options: >-
-              CABAL_PROJECT="cabal.project.ghc-9.10"
+              CABAL_BUILD_OPTIONS="-f no-charts"
+              DISABLE_TEST=y
+
+          - name: 9.10.1+allow-newer
+            ghc_version: 9.10.1
+            runner: ubuntu-latest
+            cabal_version: 3.10.2.1
+            command: cabal
+            pack_options: >-
+              CABAL_BUILD_OPTIONS="--allow-newer=lens,base"
 
           # - name: hlint
           #   command: cabal-v2
