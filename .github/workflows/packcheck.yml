@@ -79,22 +79,28 @@ jobs:
             cabal_version: 3.10.2.1
             command: cabal
 
-          - name: 9.10.1+no-charts
+          - name: 9.10.1
             ghc_version: 9.10.1
             runner: ubuntu-latest
             cabal_version: 3.10.2.1
+            command: cabal
+
+          - name: 9.12.1+no-charts
+            ghc_version: 9.12.1
+            runner: ubuntu-latest
+            cabal_version: 3.14.1.1
             command: cabal
             pack_options: >-
               CABAL_BUILD_OPTIONS="-f no-charts"
               DISABLE_TEST=y
 
-          - name: 9.10.1+allow-newer
-            ghc_version: 9.10.1
+          - name: 9.12.1+allow-newer
+            ghc_version: 9.12.1
             runner: ubuntu-latest
-            cabal_version: 3.10.2.1
+            cabal_version: 3.14.1.1
             command: cabal
             pack_options: >-
-              CABAL_BUILD_OPTIONS="--allow-newer=lens,base"
+              CABAL_BUILD_OPTIONS="--allow-newer=base,text"
 
           # - name: hlint
           #   command: cabal-v2
