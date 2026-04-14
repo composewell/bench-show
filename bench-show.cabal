@@ -80,7 +80,6 @@ extra-source-files:
     test/results-doc.csv
     test/results-doc-multi.csv
 
-    appveyor.yml
     .github/workflows/packcheck.yml
     .gitignore
     TODO.md
