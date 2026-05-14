@@ -138,7 +138,7 @@ library
         , Chart-diagrams    >= 1.6     && < 2
     if !flag(no-colors)
        build-depends:
-          ansi-wl-pprint    >= 0.6     && < 1.1
+          ansi-wl-pprint    >= 0.6     && < 1.2
     else
        cpp-options: -DNO_COLORS
 
