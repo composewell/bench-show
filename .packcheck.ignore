@@ -1,0 +1,4 @@
+.packcheck.ignore
+flake.lock
+flake.nix
+sources.nix
